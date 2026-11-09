@@ -308,12 +308,9 @@ function applyTopmost(on) {
   if (!mainWindow || mainWindow.isDestroyed()) return
   if (PLATFORM.topmostLevel) mainWindow.setAlwaysOnTop(on, PLATFORM.topmostLevel)
   else mainWindow.setAlwaysOnTop(on)
-  if (PLATFORM.mac) {
-    // Re-assert after every level change: macOS moves a window back to the Space
-    // it was created on when its window level changes, which made the panel flash
-    // and vanish on any Space other than the first.
-    mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
-  }
+  // Deliberately not setVisibleOnAllWorkspaces: the companion belongs to the
+  // Space it was opened on. Mirroring it onto every desktop would defeat the
+  // point of keeping DSH's footprint small and would override a custom layout.
 }
 
 /** macOS: a window raised from a helper process is not necessarily frontmost. */

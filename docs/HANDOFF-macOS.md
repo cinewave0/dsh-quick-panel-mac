@@ -45,7 +45,7 @@ Host 半区 index.js（跑在 DSH 主进程）
 | `main.cjs` | `app.setPath('userData')`（仅 mac） | 默认 userData 是共享目录，mac 的单实例锁也在里面 |
 | `main.cjs` | `app.dock.hide()/show()` | mac 没有任务栏按钮，浮岛态隐藏 Dock |
 | `main.cjs` | 保留应用菜单（mac） | 菜单是 Cmd+C/V/W/Q 的来源，`setMenu(null)` 会连带干掉快捷键 |
-| `main.cjs` | `floating` 档 + `setVisibleOnAllWorkspaces` | 全屏/多 Space 下不被遮挡 |
+| `main.cjs` | `floating` 档，**不跨 Space** | 窗口只属于打开它的那个桌面：插件的目的是缩小 DSH 占用，跟着切桌面会侵占用户的自定义布局 |
 | `main.cjs` | 启动时补 `applyTopmost(true)` | 启动不走 `setMode()`，原来拿不到置顶带 |
 | `main.cjs` | `activate` 要求 Dock 可见 | macOS 启动时也发 `activate`，否则一启动就弹成大面板 |
 | `main.cjs` | `clampReachable`（仅 mac） | 任意屏幕/任意位置；只保证 120×48 露在屏幕内 |
@@ -98,9 +98,9 @@ env -u ELECTRON_RUN_AS_NODE node test/panel.test.mjs
 | 展开成面板、真实数据（余额 ¥560.97、3 会话、30 日 tokens） | ✅ 截图确认 |
 | Dock 隐藏（`UIElement`）、置顶、任意屏幕/位置 | ✅ 进程与窗口状态确认 |
 | 菜单栏图标 | ✅ 已重画并确认 |
-| 拖动浮岛、面板高度拖拽、会话 1/2/3 切换 | ⏳ 已实现，等人工点验 |
+| 拖动浮岛、面板高度拖拽、会话 1/2/3 切换、待办双向同步 | ✅ 人工确认 |
 | 审批接管、问题卡镜像、附件上传、原图、提醒提示音、上滚加载更早 | ⏳ 需要特定场景触发 |
-| 虚拟桌面（Space）切换后仍在 | ⏳ 待验 |
+| 虚拟桌面（Space）：留在原桌面、不在别的桌面重复出现 | ✅ 人工确认 |
 | Windows 侧回归 | ⏳ 需在 Windows 实机跑 |
 
 ## 9. 未完成事项

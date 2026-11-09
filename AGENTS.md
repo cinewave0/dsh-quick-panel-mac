@@ -40,7 +40,7 @@
 - `app.dock.hide()/show()`：替代 Windows 的任务栏按钮
 - 应用菜单：macOS 的 Cmd+C/V/W/Q 由菜单提供，不能像 Windows 那样 `setMenu(null)`
 - 托盘模板图：`panel/trayTemplate.png` + `@2x`，跟随深浅色菜单栏反色
-- `floating` 置顶档 + `setVisibleOnAllWorkspaces(…, { visibleOnFullScreen: true })`
+- `floating` 置顶档（**不要**加 `setVisibleOnAllWorkspaces`：窗口只属于它所在的桌面）
 - 面板底部自绘 resize grip：无边框窗在 macOS 没有原生缩放边
 - `app.focus({ steal: true })`：host 拉起的窗口不一定在前台
 

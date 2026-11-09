@@ -1,6 +1,6 @@
 # 快捷面板 · macOS / Quick Panel for macOS
 
-> 当前版本：1.0.4-beta.1（预发布）
+> 当前版本：1.0.4-beta.2（预发布）
 
 [![CI](https://github.com/cinewave0/dsh-quick-panel-mac/actions/workflows/ci.yml/badge.svg)](https://github.com/cinewave0/dsh-quick-panel-mac/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/cinewave0/dsh-quick-panel-mac)](https://github.com/cinewave0/dsh-quick-panel-mac/releases)
@@ -38,13 +38,13 @@ DSH Desktop 的快捷面板插件，**macOS 版**：在 DSH 窗口内提供一�
 https://cinewave0.github.io/dsh-quick-panel-mac/market/index.json
 ```
 
-然后搜索 **Quick Panel** 安装 `1.0.4-beta.1`。索引固定到 v1.0.4-beta.1 的 Git commit。
+然后搜索 **Quick Panel** 安装。索引固定到某个 commit，装完即用。
 
 > 索引当前指向预发布版。想留在稳定版，用下面的 Release 包安装 `v1.0.3`。
 
 ### 方式二：Release 包
 
-从 [Releases](https://github.com/cinewave0/dsh-quick-panel-mac/releases) 下载 `dsh-quick-panel-mac-1.0.4-beta.1.tgz`，先用 `SHA256SUMS` 校验：
+从 [Releases](https://github.com/cinewave0/dsh-quick-panel-mac/releases) 下载 `dsh-quick-panel-mac-1.0.4-beta.2.tgz`，先用 `SHA256SUMS` 校验：
 
 ```sh
 shasum -a 256 -c SHA256SUMS          # macOS / Linux
@@ -54,7 +54,7 @@ certutil -hashfile <tgz> SHA256      # Windows，与 SHA256SUMS 里的值比对
 然后在 DSH 插件页的安装入口填 tgz 的**绝对路径**；装了 `dsh` CLI 的环境也可以直接用命令行：
 
 ```sh
-dsh plugin --profile desktop add /绝对路径/dsh-quick-panel-mac-1.0.4-beta.1.tgz
+dsh plugin --profile desktop add /绝对路径/dsh-quick-panel-mac-1.0.4-beta.2.tgz
 ```
 
 > 桌面版 App 不一定把 `dsh` 命令装进 `PATH`，没有 CLI 时用插件页安装即可。

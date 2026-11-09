@@ -205,17 +205,6 @@ import { QuickInput } from './input.js'
                 h(IconPanel, { size: 14 }),
                 h('span', null, t('panel')),
                 h('span', { className: 'qp-badge' }, 'M6'),
-                h(
-                  'span',
-                  {
-                    className: `qp-host ${state.hostStatus === 'ok' ? 'is-ok' : 'is-down'}`,
-                    title:
-                      state.hostStatus === 'ok'
-                        ? t('hostOk')
-                        : `${t('hostDown')}：${state.hostStatus || 'unknown'}`,
-                  },
-                  state.hostStatus === 'ok' ? t('hostOk') : t('hostDown'),
-                ),
               ),
               h(
                 'div',
@@ -227,11 +216,7 @@ import { QuickInput } from './input.js'
                     className: 'qp-iconbtn',
                     onClick: () => {
                       hostSync.openWindow().then((result) => {
-                        showFlash(
-                          result && result.ok
-                            ? t('windowOpened')
-                            : `${t('windowFailed')} · ${(result && result.error) || 'unknown'}`,
-                        )
+                        showFlash(result && result.ok ? t('windowOpened') : t('windowFailed'))
                       })
                     },
                     title: t('openWindow'),
@@ -358,11 +343,7 @@ import { QuickInput } from './input.js'
                 className: 'qp-window-row',
                 onClick: () => {
                   hostSync.openWindow().then((result) => {
-                    showFlash(
-                      result && result.ok
-                        ? t('windowOpened')
-                        : `${t('windowFailed')} · ${(result && result.error) || 'unknown'}`,
-                    )
+                    showFlash(result && result.ok ? t('windowOpened') : t('windowFailed'))
                   })
                 },
               },

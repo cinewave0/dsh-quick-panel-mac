@@ -508,32 +508,34 @@ if (!allowed) {
     ipcMain.handle('qp:drag-end', () => {
       dragState = null
     })
-    // macOS frameless windows have no native resize edge, so the panel draws its
-    // own bottom grip and drives the height through these three calls.
-    ipcMain.handle('qp:resize-start', (_event, y) => {
-      if (!mainWindow || mainWindow.isDestroyed() || mode !== 'panel') return
-      const bounds = mainWindow.getBounds()
-      resizeState = { cursorY: Number(y) || 0, height: bounds.height, y: bounds.y }
-    })
-    ipcMain.handle('qp:resize-move', (_event, y) => {
-      if (!resizeState || !mainWindow || mainWindow.isDestroyed() || mode !== 'panel') return
-      if (!Number.isFinite(y)) return
-      const area = screen.getDisplayMatching(mainWindow.getBounds()).workArea
-      const height = Math.min(
-        Math.max(resizeState.height + Math.round(y - resizeState.cursorY), PANEL_MIN_HEIGHT),
-        area.height,
-      )
-      const bounds = mainWindow.getBounds()
-      programmaticResize = true
-      mainWindow.setBounds({ x: bounds.x, y: resizeState.y, width: PANEL_WIDTH, height })
-      setTimeout(() => {
-        programmaticResize = false
-      }, 80)
-    })
-    ipcMain.handle('qp:resize-end', () => {
-      resizeState = null
-      queueSave()
-    })
+    // macOS frameless windows have no native resize edge, so the panel draws
+    // its own bottom grip and drives the height through these three calls.
+    if (PLATFORM.mac) {
+      ipcMain.handle('qp:resize-start', (_event, y) => {
+        if (!mainWindow || mainWindow.isDestroyed() || mode !== 'panel') return
+        const bounds = mainWindow.getBounds()
+        resizeState = { cursorY: Number(y) || 0, height: bounds.height, y: bounds.y }
+      })
+      ipcMain.handle('qp:resize-move', (_event, y) => {
+        if (!resizeState || !mainWindow || mainWindow.isDestroyed() || mode !== 'panel') return
+        if (!Number.isFinite(y)) return
+        const area = screen.getDisplayMatching(mainWindow.getBounds()).workArea
+        const height = Math.min(
+          Math.max(resizeState.height + Math.round(y - resizeState.cursorY), PANEL_MIN_HEIGHT),
+          area.height,
+        )
+        const bounds = mainWindow.getBounds()
+        programmaticResize = true
+        mainWindow.setBounds({ x: bounds.x, y: resizeState.y, width: PANEL_WIDTH, height })
+        setTimeout(() => {
+          programmaticResize = false
+        }, 80)
+      })
+      ipcMain.handle('qp:resize-end', () => {
+        resizeState = null
+        queueSave()
+      })
+    }
     ipcMain.handle('qp:pin', () => {
       pinned = !pinned
       if (mainWindow && !mainWindow.isDestroyed() && mode === 'panel') {

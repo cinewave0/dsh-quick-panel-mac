@@ -7,8 +7,9 @@ const path = require('node:path')
 const { companionPlatform } = require('./platform.cjs')
 
 const PANEL_WIDTH = 440
-/** Kept for the non-macOS clamp path; the macOS panel is full height. */
 const PANEL_MIN_HEIGHT = 560
+/** Height of the first open; after that the panel remembers what the user dragged. */
+const PANEL_DEFAULT_HEIGHT = 720
 const ISLAND_WIDTH = 360
 const ISLAND_HEIGHT = 48
 
@@ -102,7 +103,7 @@ function panelTarget(workArea) {
   const height =
     panelBounds && Number.isFinite(panelBounds.height)
       ? clamp(panelBounds.height, PANEL_MIN_HEIGHT, workArea.height)
-      : workArea.height
+      : Math.min(PANEL_DEFAULT_HEIGHT, workArea.height)
   const remembered =
     panelBounds &&
     Number.isFinite(panelBounds.x) &&

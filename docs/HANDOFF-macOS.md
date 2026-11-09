@@ -99,14 +99,18 @@ env -u ELECTRON_RUN_AS_NODE node test/panel.test.mjs
 | Dock 隐藏（`UIElement`）、置顶、任意屏幕/位置 | ✅ 进程与窗口状态确认 |
 | 菜单栏图标 | ✅ 已重画并确认 |
 | 拖动浮岛、面板高度拖拽、会话 1/2/3 切换、待办双向同步 | ✅ 人工确认 |
-| 审批接管、问题卡镜像、附件上传、原图、提醒提示音、上滚加载更早 | ⏳ 需要特定场景触发 |
+| 审批接管（外部认领 + 提示音 + 外部批准） | ✅ 人工确认 |
+| 问题卡镜像（同一张卡在外部提交） | ✅ 人工确认 |
+| 附件上传 / 图片引用镜像 / 原图查看 | ✅ 人工确认 |
+| 提醒到点（提示音 + `firedFor` 落库） | ✅ 人工确认 |
+| 上滚加载更早 | ✅ 人工确认 |
 | 虚拟桌面（Space）：留在原桌面、不在别的桌面重复出现 | ✅ 人工确认 |
 | Windows 侧回归 | ⏳ 需在 Windows 实机跑 |
 
 ## 9. 未完成事项
 
-1. 上面表中 ⏳ 的项逐条人工验（约 10 分钟）。
-2. Space 行为：若切换桌面后窗口弹回原桌面，是 `setVisibleOnAllWorkspaces` 的已知行为，需要改成"跟随当前 Space"或换 `collectionBehavior`。
+1. 功能项已全部人工验完（见第 8 节）；只剩 Windows 侧回归与"通知身份"两项不属于本仓库范围。
+2. Space 行为：**已定案并验证**——窗口只属于打开它的桌面，不跨 Space。
 3. 通知身份：裸 Electron 二进制在系统里叫 "Electron"（应用名、通知来源都是）。要正名得打成签名的 `.app`，超出当前范围。
 4. 发布：**已完成**。独立仓库 `cinewave0/dsh-quick-panel-mac`，包名 `dsh-quick-panel-mac`，`dsh.bundle.platforms: ["darwin"]`，Pages 索引已上线；后续版本在 Windows 仓库之外独立打 `v*` tag 即可自动发布。
 5. Windows 侧：不要在这个分支上改 Windows 路径。`AGENTS.md` 里有"不可动清单"。

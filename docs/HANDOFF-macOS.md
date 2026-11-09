@@ -109,9 +109,9 @@ env -u ELECTRON_RUN_AS_NODE node test/panel.test.mjs
 
 ## 9. 未完成事项
 
-1. 功能项已全部人工验完（见第 8 节）；只剩 Windows 侧回归与"通知身份"两项不属于本仓库范围。
+1. 功能项已全部人工验完（见第 8 节）；只剩 Windows 侧回归不属于本仓库范围。
 2. Space 行为：**已定案并验证**——窗口只属于打开它的桌面，不跨 Space。
-3. 通知身份：裸 Electron 二进制在系统里叫 "Electron"（应用名、通知来源都是）。要正名得打成签名的 `.app`，超出当前范围。
+3. 通知：**系统级横幅在本机不可用**。裸 Electron 二进制从未注册进通知中心（`com.apple.ncprefs` 里 95 个应用，没有 Electron），所以 `new Notification()` 不会弹横幅；能看到的「通知条」是面板自绘的记录，提示音由面板用 WebAudio 播放。通知标题已经统一加了「快捷面板 ·」前缀，等将来封装成 `.app` 后会自动生效。
 4. 发布：**已完成**。独立仓库 `cinewave0/dsh-quick-panel-mac`，包名 `dsh-quick-panel-mac`，`dsh.bundle.platforms: ["darwin"]`，Pages 索引已上线；后续版本在 Windows 仓库之外独立打 `v*` tag 即可自动发布。
 5. Windows 侧：不要在这个分支上改 Windows 路径。`AGENTS.md` 里有"不可动清单"。
 

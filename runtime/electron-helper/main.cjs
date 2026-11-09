@@ -99,7 +99,10 @@ function workAreaFor(bounds) {
  * area of whatever display the island is on, so there is nothing to drag.
  */
 function panelTarget(workArea) {
-  const height = workArea.height
+  const height =
+    panelBounds && Number.isFinite(panelBounds.height)
+      ? clamp(panelBounds.height, PANEL_MIN_HEIGHT, workArea.height)
+      : workArea.height
   const remembered =
     panelBounds &&
     Number.isFinite(panelBounds.x) &&
@@ -155,8 +158,8 @@ function clampToWorkArea(bounds) {
  */
 function clampReachable(bounds) {
   const width = mode === 'island' ? ISLAND_WIDTH : PANEL_WIDTH
-  const minHeight = mode === 'island' ? ISLAND_HEIGHT : bounds.height
-  const maxHeight = mode === 'island' ? ISLAND_HEIGHT : bounds.height
+  const minHeight = mode === 'island' ? ISLAND_HEIGHT : PANEL_MIN_HEIGHT
+  const maxHeight = mode === 'island' ? ISLAND_HEIGHT : Math.max(PANEL_MIN_HEIGHT, bounds.height)
   const height = Math.min(Math.max(bounds.height, minHeight), maxHeight)
   const keptWidth = Math.min(KEEP_VISIBLE_WIDTH, width)
   const keptHeight = Math.min(KEEP_VISIBLE_HEIGHT, height)
@@ -269,10 +272,11 @@ function setMode(next) {
   } else {
     mode = 'panel'
     programmaticResize = true
-    // Fixed width and full height: there is no edge or grip to drag.
-    mainWindow.setMinimumSize(PANEL_WIDTH, workArea.height)
+    // macOS: width stays 440 (min === max), height is dragged with the native
+    // window edges between PANEL_MIN_HEIGHT and the work area height.
+    mainWindow.setMinimumSize(PANEL_WIDTH, PANEL_MIN_HEIGHT)
     mainWindow.setMaximumSize(PANEL_WIDTH, workArea.height)
-    mainWindow.setResizable(false)
+    mainWindow.setResizable(true)
     mainWindow.setSkipTaskbar(false)
     applyTopmost(pinned)
     setDockVisible(true)
@@ -367,7 +371,11 @@ function createWindow() {
     maxWidth: ISLAND_WIDTH,
     minHeight: ISLAND_HEIGHT,
     maxHeight: ISLAND_HEIGHT,
-    frame: false,
+    // A real frame with a hidden title bar: macOS then owns the resize edges,
+    // which a frameless window does not have. The traffic lights are hidden
+    // below so only our own header is visible.
+    frame: PLATFORM.mac,
+    titleBarStyle: PLATFORM.mac ? 'hidden' : 'default',
     show: true,
     resizable: false,
     skipTaskbar: true,
@@ -396,6 +404,11 @@ function createWindow() {
     launchUrl = url.toString()
   } catch (_error) {
     /* keep the raw target */
+  }
+  // The frame exists for the resize edges; its traffic lights would overlap our
+  // own header, so hide them.
+  if (PLATFORM.mac && typeof mainWindow.setWindowButtonVisibility === 'function') {
+    mainWindow.setWindowButtonVisibility(false)
   }
   mainWindow.loadURL(launchUrl)
   mainWindow.webContents.on('will-navigate', (event, url) => {

@@ -41,7 +41,7 @@
 - 应用菜单：macOS 的 Cmd+C/V/W/Q 由菜单提供，不能像 Windows 那样 `setMenu(null)`
 - 托盘模板图：`panel/trayTemplate.png` + `@2x`，跟随深浅色菜单栏反色
 - `floating` 置顶档（**不要**加 `setVisibleOnAllWorkspaces`：窗口只属于它所在的桌面）
-- 面板尺寸：固定 440 宽、高度取工作区高度，不做自绘缩放条
+- 面板尺寸：宽度锁 440（min=max），高度交给系统边缘拖动，不做自绘缩放条
 - `app.focus({ steal: true })`：host 拉起的窗口不一定在前台
 
 ## 验证矩阵

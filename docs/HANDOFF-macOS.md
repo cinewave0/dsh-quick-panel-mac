@@ -14,10 +14,10 @@
 ## 2. 代码与环境
 
 - GitHub：<https://github.com/cinewave0/dsh-quick-panel-mac>（`main`）
-- 本地工作副本：`/tmp/qpmac-repo`（**注意：`/tmp` 会被系统清理**，长期保存用第 10 节的备份）
+- 本地工作副本：`~/dsh/quick-panel-mac`（**注意：`/tmp` 会被系统清理**，长期保存用第 10 节的备份）
 - 本机备份：`~/dsh/backups/quick-panel-1.0.4-beta.1-*-mac-port.zip`（含 `.git` 全历史，sha256 见同名 `.sha256`）
 - Electron：`~/.dsh/electron/Electron.app/Contents/MacOS/Electron`（43.3.0，由 dsh-pet 下载）
-- 安装方式：以 `link:` 挂载进桌面版 profile（`~/.dsh/profiles/desktop/package.json` 里的 `dsh-quick-panel-mac: link:/tmp/qpmac-repo`）
+- 安装方式：以 `link:` 挂载进桌面版 profile（`~/.dsh/profiles/desktop/package.json` 里的 `dsh-quick-panel-mac: link:~/dsh/quick-panel-mac`）
 
 ## 3. 三方架构
 

@@ -957,7 +957,7 @@ function remindApproval(approval) {
     if (Notification.permission !== 'granted') return
     clearApprovalNotice()
     try {
-      approvalNotice = new Notification(`权限请求 · ${approval.toolName || '工具'}`, {
+      approvalNotice = new Notification(`快捷面板 · 权限请求（${approval.toolName || '工具'}）`, {
         body: approval.reason || approval.displayReason || '工具请求越权执行',
         tag: 'quick-panel-approval',
         requireInteraction: true,
@@ -1603,7 +1603,7 @@ async function refresh(force) {
         if (!document.hasFocus()) {
           try {
             if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-              new Notification('本轮已完成', {
+              new Notification('快捷面板 · 本轮已完成', {
                 body: `用时 ${formatDuration(elapsed)}`,
                 silent: true,
               })
@@ -1958,7 +1958,7 @@ function notifyReminder(item) {
       if (pending && typeof pending.catch === 'function') pending.catch(() => {})
     }
     if (Notification.permission !== 'granted') return
-    const notice = new Notification('提醒', { body: item.text, silent: true })
+    const notice = new Notification('快捷面板 · 提醒', { body: item.text, silent: true })
     notice.onclick = () => {
       const desktop = window.quickPanelDesktop
       if (desktop && typeof desktop.expand === 'function') void desktop.expand()

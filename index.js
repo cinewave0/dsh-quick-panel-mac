@@ -1187,8 +1187,39 @@ export function apply(ctx) {
     return { ok: true }
   }
 
+  /**
+   * Bring an already-open companion forward. The helper keeps one window and
+   * holds the single-instance lock, so this second process exits immediately and
+   * the first one receives `second-instance` and switches to the panel. It must
+   * not touch `child`, or the Host would lose track of the real window.
+   */
+  const raiseWindow = (executable, main, url) => {
+    const environment = {
+      ...process.env,
+      QUICK_PANEL_URL: url,
+      QUICK_PANEL_HOST_PID: String(process.pid),
+    }
+    delete environment.ELECTRON_RUN_AS_NODE
+    try {
+      const second = spawn(executable, [main, `--url=${url}`], {
+        cwd: stateDirectory(),
+        detached: true,
+        stdio: 'ignore',
+        windowsHide: true,
+        env: environment,
+      })
+      second.on('error', (error) => {
+        note(`raise error ${String((error && error.message) || error)}`)
+      })
+      second.unref()
+      note('raise existing window via second instance')
+      return { ok: true, raised: true }
+    } catch (error) {
+      return { ok: false, error: String((error && error.message) || error) }
+    }
+  }
+
   const openWindow = () => {
-    if (child && !child.killed) return { ok: true, alreadyOpen: true }
     const executable = electronExecutable()
     if (!executable) return { ok: false, error: 'electron-missing' }
     const main = join(packageRoot, 'runtime', 'electron-helper', 'main.cjs')
@@ -1199,6 +1230,7 @@ export function apply(ctx) {
       return { ok: false, error: 'origin-unavailable' }
     }
     const url = `${origin}${ROUTE_BASE}/panel?token=${encodeURIComponent(token)}`
+    if (child && !child.killed) return raiseWindow(executable, main, url)
     return launchWindow(executable, main, url)
   }
 

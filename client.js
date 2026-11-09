@@ -70,6 +70,8 @@ window.__ModuleLoader__.load({
           inserted: "已填入输入框，按 Enter 发送",
           connected: "对话已连接",
           noSessionShort: "未选择对话",
+          hostOk: "已连接",
+          hostDown: "未连接",
           handoffHint: "勾选左侧方框 = 填入当前对话输入框，不会自动发送。",
           islandIdle: "快捷面板",
           islandConnected: "对话已连接",
@@ -169,6 +171,8 @@ window.__ModuleLoader__.load({
           inserted: "Filled into the composer — press Enter to send",
           connected: "Conversation connected",
           noSessionShort: "No conversation selected",
+          hostOk: "Connected",
+          hostDown: "Offline",
           handoffHint: "Checking the left box fills the current composer; it never auto-sends.",
           islandIdle: "Quick panel",
           islandConnected: "Conversation connected",
@@ -548,6 +552,8 @@ window.__ModuleLoader__.load({
             canPrompt: false,
             canCancel: false,
             companionOpen: false,
+            /** Host bridge health: 'unknown' | 'ok' | 'lost' | 'config-<status>' | … */
+            hostStatus: "unknown",
             usage: null
           }),
           inputActions: null,
@@ -881,9 +887,15 @@ window.__ModuleLoader__.load({
                   credentials: "same-origin",
                   cache: "no-store"
                 });
-                if (!configResponse.ok) return;
+                if (!configResponse.ok) {
+                  store.patch({ hostStatus: `config-${configResponse.status}` });
+                  return;
+                }
                 const config = await configResponse.json();
-                if (!config || !config.token) return;
+                if (!config || !config.token) {
+                  store.patch({ hostStatus: "config-no-token" });
+                  return;
+                }
                 this.token = config.token;
               }
               const state = await this.readState();
@@ -900,7 +912,7 @@ window.__ModuleLoader__.load({
               this.applying = false;
               this.rev = Number.isFinite(state.rev) ? state.rev : 0;
               this.ready = true;
-              store.patch({ companionOpen: Boolean(state.companionOpen) });
+              store.patch({ companionOpen: Boolean(state.companionOpen), hostStatus: "ok" });
               if (!hasHostData && hasLocalData) await this.push();
               this.setSession(store.state.sessionId);
               this.unsubscribeLive = store.subscribe(() => this.scheduleLive());
@@ -913,6 +925,7 @@ window.__ModuleLoader__.load({
               document.addEventListener("visibilitychange", this.visibilityHandler);
               this.pollTimer = window.setInterval(() => this.poll(), 2500);
             } catch (_error) {
+              store.patch({ hostStatus: "unreachable" });
             }
           },
           async readState() {
@@ -922,9 +935,15 @@ window.__ModuleLoader__.load({
                 `${HOST_ROUTE}/state?token=${encodeURIComponent(this.token)}`,
                 { cache: "no-store" }
               );
-              if (!response.ok) return null;
+              if (!response.ok) {
+                this.lastReadError = `state-${response.status}`;
+                if (response.status === 401) this.token = null;
+                return null;
+              }
+              this.lastReadError = "";
               return await response.json();
             } catch (_error) {
+              this.lastReadError = "state-network";
               return null;
             }
           },
@@ -1140,8 +1159,19 @@ window.__ModuleLoader__.load({
           },
           async poll() {
             if (!this.ready || this.applying) return;
+            if (!this.token) {
+              const tokenStatus = await this.ensureToken();
+              if (tokenStatus !== "ok") {
+                store.patch({ hostStatus: tokenStatus });
+                return;
+              }
+            }
             const state = await this.readState();
-            if (!state) return;
+            if (!state) {
+              store.patch({ hostStatus: this.lastReadError || "lost" });
+              return;
+            }
+            if (store.state.hostStatus !== "ok") store.patch({ hostStatus: "ok" });
             if (typeof state.companionOpen === "boolean") {
               const wasOpen = store.state.companionOpen;
               store.patch({ companionOpen: state.companionOpen });
@@ -1176,8 +1206,37 @@ window.__ModuleLoader__.load({
               });
             }, 200);
           },
+          /**
+           * The host token arrives either injected into the page as
+           * `__QUICK_PANEL_CONFIG__` or from `/quick-panel/config`. `init()` runs
+           * once, so a page that was already open when the plugin mounted can end
+           * up with no token at all; ask again here instead of leaving every action
+           * on a dead token. Returns 'ok' or a short reason for the UI.
+           */
+          async ensureToken() {
+            if (this.token) return "ok";
+            const injected = window.__QUICK_PANEL_CONFIG__;
+            if (injected && typeof injected.token === "string" && injected.token) {
+              this.token = injected.token;
+              return "ok";
+            }
+            try {
+              const response = await fetch(`${HOST_ROUTE}/config`, {
+                credentials: "same-origin",
+                cache: "no-store"
+              });
+              if (!response.ok) return `config-${response.status}`;
+              const config = await response.json();
+              if (!config || typeof config.token !== "string" || !config.token) return "config-no-token";
+              this.token = config.token;
+              return "ok";
+            } catch (_error) {
+              return "config-network";
+            }
+          },
           async openWindow() {
-            if (!this.token) return { ok: false, error: "host-unavailable" };
+            const tokenStatus = await this.ensureToken();
+            if (tokenStatus !== "ok") return { ok: false, error: tokenStatus };
             try {
               const response = await fetch(
                 `${HOST_ROUTE}/action?token=${encodeURIComponent(this.token)}`,
@@ -1359,6 +1418,9 @@ window.__ModuleLoader__.load({
       .qp-head-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
       .qp-title{display:flex;align-items:center;gap:7px;font-size:11px;letter-spacing:.06em;color:var(--dsw-alias-label-secondary,#98a2b3);font-weight:600}
       .qp-grip{display:inline-flex;color:var(--dsw-alias-label-secondary,#98a2b3);opacity:.55;margin-right:1px}
+      .qp-host{font-size:9px;padding:2px 6px;border-radius:999px;border:1px solid transparent;font-weight:600;letter-spacing:.02em;white-space:nowrap}
+      .qp-host.is-ok{color:var(--dsw-alias-state-success-primary,#3ddc97);background:rgb(61 220 151 / .12);border-color:rgb(61 220 151 / .25)}
+      .qp-host.is-down{color:var(--dsw-alias-state-warn-primary,#e7b25a);background:rgb(231 178 90 / .12);border-color:rgb(231 178 90 / .28)}
       .qp-badge{font-size:9px;padding:2px 6px;border-radius:999px;background:var(--dsw-alias-bg-layer-2,#22262e);border:1px solid var(--dsw-alias-border-l1,#2b3039);color:var(--dsw-alias-label-secondary,#98a2b3);font-weight:600;letter-spacing:.04em}
       .qp-head-actions{display:flex;gap:2px;cursor:default}
       .qp-iconbtn{width:26px;height:26px;display:inline-flex;align-items:center;justify-content:center;border:0;border-radius:7px;background:transparent;color:var(--dsw-alias-label-secondary,#98a2b3);cursor:pointer}
@@ -2812,7 +2874,15 @@ window.__ModuleLoader__.load({
                     h("span", { className: "qp-grip" }, h(IconGrip)),
                     h(IconPanel, { size: 14 }),
                     h("span", null, t("panel")),
-                    h("span", { className: "qp-badge" }, "M6")
+                    h("span", { className: "qp-badge" }, "M6"),
+                    h(
+                      "span",
+                      {
+                        className: `qp-host ${state.hostStatus === "ok" ? "is-ok" : "is-down"}`,
+                        title: state.hostStatus === "ok" ? t("hostOk") : `${t("hostDown")}：${state.hostStatus || "unknown"}`
+                      },
+                      state.hostStatus === "ok" ? t("hostOk") : t("hostDown")
+                    )
                   ),
                   h(
                     "div",
@@ -2824,7 +2894,9 @@ window.__ModuleLoader__.load({
                         className: "qp-iconbtn",
                         onClick: () => {
                           hostSync.openWindow().then((result) => {
-                            showFlash(result && result.ok ? t("windowOpened") : t("windowFailed"));
+                            showFlash(
+                              result && result.ok ? t("windowOpened") : `${t("windowFailed")} · ${result && result.error || "unknown"}`
+                            );
                           });
                         },
                         title: t("openWindow"),
@@ -2947,7 +3019,9 @@ window.__ModuleLoader__.load({
                     className: "qp-window-row",
                     onClick: () => {
                       hostSync.openWindow().then((result) => {
-                        showFlash(result && result.ok ? t("windowOpened") : t("windowFailed"));
+                        showFlash(
+                          result && result.ok ? t("windowOpened") : `${t("windowFailed")} · ${result && result.error || "unknown"}`
+                        );
                       });
                     }
                   },

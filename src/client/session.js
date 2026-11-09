@@ -16,6 +16,8 @@ import { pad2, userImageRefs, hostLiveRow, hostLivePartial } from './text.js'
         canPrompt: false,
         canCancel: false,
         companionOpen: false,
+        /** Host bridge health: 'unknown' | 'ok' | 'lost' | 'config-<status>' | … */
+        hostStatus: 'unknown',
         usage: null,
       }),
       inputActions: null,
@@ -390,9 +392,15 @@ import { pad2, userImageRefs, hostLiveRow, hostLivePartial } from './text.js'
               credentials: 'same-origin',
               cache: 'no-store',
             })
-            if (!configResponse.ok) return
+            if (!configResponse.ok) {
+              store.patch({ hostStatus: `config-${configResponse.status}` })
+              return
+            }
             const config = await configResponse.json()
-            if (!config || !config.token) return
+            if (!config || !config.token) {
+              store.patch({ hostStatus: 'config-no-token' })
+              return
+            }
             this.token = config.token
           }
           const state = await this.readState()
@@ -409,7 +417,7 @@ import { pad2, userImageRefs, hostLiveRow, hostLivePartial } from './text.js'
           this.applying = false
           this.rev = Number.isFinite(state.rev) ? state.rev : 0
           this.ready = true
-          store.patch({ companionOpen: Boolean(state.companionOpen) })
+          store.patch({ companionOpen: Boolean(state.companionOpen), hostStatus: 'ok' })
           if (!hasHostData && hasLocalData) await this.push()
           this.setSession(store.state.sessionId)
           this.unsubscribeLive = store.subscribe(() => this.scheduleLive())
@@ -422,7 +430,9 @@ import { pad2, userImageRefs, hostLiveRow, hostLivePartial } from './text.js'
           document.addEventListener('visibilitychange', this.visibilityHandler)
           this.pollTimer = window.setInterval(() => this.poll(), 2500)
         } catch (_error) {
-          /* the Host bridge is optional; localStorage remains the fallback */
+          // The Host bridge is optional; localStorage remains the fallback, but
+          // the panel should still say why it is not connected.
+          store.patch({ hostStatus: 'unreachable' })
         }
       },
 
@@ -433,9 +443,17 @@ import { pad2, userImageRefs, hostLiveRow, hostLivePartial } from './text.js'
             `${HOST_ROUTE}/state?token=${encodeURIComponent(this.token)}`,
             { cache: 'no-store' },
           )
-          if (!response.ok) return null
+          if (!response.ok) {
+            this.lastReadError = `state-${response.status}`
+            // 401 means this page holds a token from a Host that has restarted;
+            // drop it so the next poll can ask for a fresh one.
+            if (response.status === 401) this.token = null
+            return null
+          }
+          this.lastReadError = ''
           return await response.json()
         } catch (_error) {
+          this.lastReadError = 'state-network'
           return null
         }
       },
@@ -691,8 +709,19 @@ import { pad2, userImageRefs, hostLiveRow, hostLivePartial } from './text.js'
 
       async poll() {
         if (!this.ready || this.applying) return
+        if (!this.token) {
+          const tokenStatus = await this.ensureToken()
+          if (tokenStatus !== 'ok') {
+            store.patch({ hostStatus: tokenStatus })
+            return
+          }
+        }
         const state = await this.readState()
-        if (!state) return
+        if (!state) {
+          store.patch({ hostStatus: this.lastReadError || 'lost' })
+          return
+        }
+        if (store.state.hostStatus !== 'ok') store.patch({ hostStatus: 'ok' })
         if (typeof state.companionOpen === 'boolean') {
           const wasOpen = store.state.companionOpen
           store.patch({ companionOpen: state.companionOpen })
@@ -728,8 +757,38 @@ import { pad2, userImageRefs, hostLiveRow, hostLivePartial } from './text.js'
         }, 200)
       },
 
+      /**
+       * The host token arrives either injected into the page as
+       * `__QUICK_PANEL_CONFIG__` or from `/quick-panel/config`. `init()` runs
+       * once, so a page that was already open when the plugin mounted can end
+       * up with no token at all; ask again here instead of leaving every action
+       * on a dead token. Returns 'ok' or a short reason for the UI.
+       */
+      async ensureToken() {
+        if (this.token) return 'ok'
+        const injected = window.__QUICK_PANEL_CONFIG__
+        if (injected && typeof injected.token === 'string' && injected.token) {
+          this.token = injected.token
+          return 'ok'
+        }
+        try {
+          const response = await fetch(`${HOST_ROUTE}/config`, {
+            credentials: 'same-origin',
+            cache: 'no-store',
+          })
+          if (!response.ok) return `config-${response.status}`
+          const config = await response.json()
+          if (!config || typeof config.token !== 'string' || !config.token) return 'config-no-token'
+          this.token = config.token
+          return 'ok'
+        } catch (_error) {
+          return 'config-network'
+        }
+      },
+
       async openWindow() {
-        if (!this.token) return { ok: false, error: 'host-unavailable' }
+        const tokenStatus = await this.ensureToken()
+        if (tokenStatus !== 'ok') return { ok: false, error: tokenStatus }
         try {
           const response = await fetch(
             `${HOST_ROUTE}/action?token=${encodeURIComponent(this.token)}`,

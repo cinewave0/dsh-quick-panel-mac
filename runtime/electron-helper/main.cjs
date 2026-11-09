@@ -442,6 +442,9 @@ if (!allowed) {
     installApplicationMenu()
     createTray()
     setDockVisible(false)
+    // A launch starts in island mode and never passes through setMode(), so the
+    // floating band and the "show on every Space" flag have to be applied here.
+    if (PLATFORM.mac) applyTopmost(true)
     setInterval(() => {
       if (!quitting) enforceIslandSize()
     }, 2000)
@@ -572,8 +575,11 @@ if (!allowed) {
     quitting = true
   })
   // macOS: clicking the Dock icon while the panel is collapsed reopens it.
+  // `activate` also fires on launch, so require a visible Dock icon — it is
+  // hidden whenever the island is showing.
   if (PLATFORM.mac) {
     app.on('activate', () => {
+      if (!app.dock || !app.dock.isVisible()) return
       if (mainWindow && !mainWindow.isDestroyed()) setMode('panel')
     })
   }

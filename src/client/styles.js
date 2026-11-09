@@ -20,6 +20,9 @@
 .qp-head-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .qp-title{display:flex;align-items:center;gap:7px;font-size:11px;letter-spacing:.06em;color:var(--dsw-alias-label-secondary,#98a2b3);font-weight:600}
 .qp-grip{display:inline-flex;color:var(--dsw-alias-label-secondary,#98a2b3);opacity:.55;margin-right:1px}
+.qp-host{font-size:9px;padding:2px 6px;border-radius:999px;border:1px solid transparent;font-weight:600;letter-spacing:.02em;white-space:nowrap}
+.qp-host.is-ok{color:var(--dsw-alias-state-success-primary,#3ddc97);background:rgb(61 220 151 / .12);border-color:rgb(61 220 151 / .25)}
+.qp-host.is-down{color:var(--dsw-alias-state-warn-primary,#e7b25a);background:rgb(231 178 90 / .12);border-color:rgb(231 178 90 / .28)}
 .qp-badge{font-size:9px;padding:2px 6px;border-radius:999px;background:var(--dsw-alias-bg-layer-2,#22262e);border:1px solid var(--dsw-alias-border-l1,#2b3039);color:var(--dsw-alias-label-secondary,#98a2b3);font-weight:600;letter-spacing:.04em}
 .qp-head-actions{display:flex;gap:2px;cursor:default}
 .qp-iconbtn{width:26px;height:26px;display:inline-flex;align-items:center;justify-content:center;border:0;border-radius:7px;background:transparent;color:var(--dsw-alias-label-secondary,#98a2b3);cursor:pointer}

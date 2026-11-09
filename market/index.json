@@ -6,33 +6,33 @@
   },
   "description": {
     "en": "Standalone quick panel for DSH: todos, reminders, live session view and quick input.",
-    "zh": "DSH 独立快捷面板：待办、提醒、实时消息和快速输入。"
+    "zh": "DSH 快捷面板（macOS 版）：待办、提醒、实时消息和快速输入。"
   },
   "plugins": [
     {
-      "name": "dsh-quick-panel",
+      "name": "dsh-quick-panel-mac",
       "title": {
         "en": "Quick Panel",
         "zh": "快捷面板"
       },
       "description": {
         "en": "A standalone DSH companion window with todos, reminders, live messages, approvals and quick input.",
-        "zh": "带待办、提醒、实时消息、审批和快速输入的 DSH 独立伴生窗。"
+        "zh": "macOS 上的 DSH 独立伴生窗：待办、提醒、实时消息、审批和快速输入。"
       },
       "author": "cinewave0",
-      "homepage": "https://github.com/cinewave0/cinewave0-dsh-quick-panel",
+      "homepage": "https://github.com/cinewave0/dsh-quick-panel-mac",
       "repository": {
-        "url": "https://github.com/cinewave0/cinewave0-dsh-quick-panel"
+        "url": "https://github.com/cinewave0/dsh-quick-panel-mac"
       },
       "icon": "../icon.svg",
       "versions": [
         {
           "version": "1.0.4-beta.1",
-          "publishTimestamp": 1794150770,
+          "publishTimestamp": 1794204750,
           "source": {
             "type": "git",
-            "url": "https://github.com/cinewave0/cinewave0-dsh-quick-panel",
-            "commit": "88984c0df6ee39fa94023332a95042a351817dc4"
+            "url": "https://github.com/cinewave0/dsh-quick-panel-mac",
+            "commit": "9a9393a25e38ce599ad10dcbcbbd3a1c19c45109"
           },
           "engines": {
             "dsh": ">=0.2.2-rc.1 <0.3.0"

@@ -57,6 +57,7 @@ run(
     '--exclude=test/output',
     '--exclude=test/.state',
     '--exclude=test/.userdata',
+    '--exclude=demo/.state',
     '--exclude=*.tgz',
     '--exclude=.DS_Store',
     '.',

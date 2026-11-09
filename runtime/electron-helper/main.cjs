@@ -4,12 +4,15 @@ const { app, BrowserWindow, Menu, Tray, ipcMain, nativeImage, screen } = require
 const fs = require('node:fs')
 const os = require('node:os')
 const path = require('node:path')
+const { companionPlatform } = require('./platform.cjs')
 
 const PANEL_WIDTH = 440
 const PANEL_MIN_HEIGHT = 560
 const PANEL_DEFAULT_HEIGHT = 720
 const ISLAND_WIDTH = 360
 const ISLAND_HEIGHT = 48
+
+const PLATFORM = companionPlatform(process.platform)
 
 app.setName('dsh-quick-panel')
 
@@ -21,6 +24,22 @@ const allowed = /^http:\/\/127\.0\.0\.1:\d+\//.test(target)
 const home = process.env.DSH_HOME || path.join(os.homedir(), '.dsh')
 const boundsFile = path.join(home, 'quick-panel', 'window.json')
 const iconPath = path.join(__dirname, '..', '..', 'panel', 'icon.png')
+const trayIconPath = path.join(
+  __dirname,
+  '..',
+  '..',
+  'panel',
+  PLATFORM.templateTrayIcon ? 'trayTemplate.png' : 'icon.png',
+)
+
+/**
+ * macOS only: Electron derives userData from the app name, and launched as
+ * `electron <main.cjs>` that name is absent, so it falls back to a directory
+ * shared with every other bare Electron script — profile, cache and the
+ * single-instance socket the helper locks at startup. Windows keeps its
+ * existing location; this branch must not change it.
+ */
+if (PLATFORM.mac) app.setPath('userData', path.join(home, 'quick-panel', 'user-data'))
 
 let mainWindow = null
 let tray = null
@@ -31,6 +50,7 @@ let panelBounds = null
 let islandBounds = null
 let saveTimer = 0
 let dragState = null
+let resizeState = null
 let programmaticResize = false
 
 function readPersisted() {
@@ -171,8 +191,10 @@ function setMode(next) {
   if (!mainWindow || mainWindow.isDestroyed()) return
   if (next === mode) {
     if (next === 'panel') {
+      setDockVisible(true)
       mainWindow.show()
       mainWindow.focus()
+      stealFocus()
     }
     return
   }
@@ -188,7 +210,8 @@ function setMode(next) {
     mainWindow.setBounds(islandTarget(workArea))
     mainWindow.setSize(ISLAND_WIDTH, ISLAND_HEIGHT, false)
     mainWindow.setSkipTaskbar(true)
-    mainWindow.setAlwaysOnTop(true)
+    applyTopmost(true)
+    setDockVisible(false)
     mainWindow.webContents.send('qp:mode', 'island')
     mainWindow.show()
     mainWindow.setResizable(false)
@@ -205,11 +228,13 @@ function setMode(next) {
     mainWindow.setMinimumSize(PANEL_WIDTH, PANEL_MIN_HEIGHT)
     mainWindow.setMaximumSize(PANEL_WIDTH, workArea.height)
     mainWindow.setSkipTaskbar(false)
-    mainWindow.setAlwaysOnTop(pinned)
+    applyTopmost(pinned)
+    setDockVisible(true)
     mainWindow.setBounds(panelTarget(workArea))
     mainWindow.webContents.send('qp:mode', 'panel')
     mainWindow.show()
     mainWindow.focus()
+    stealFocus()
     setTimeout(() => {
       programmaticResize = false
     }, 200)
@@ -217,11 +242,40 @@ function setMode(next) {
   persist()
 }
 
+/** macOS swaps the taskbar button for the Dock icon, so the island hides it. */
+function setDockVisible(visible) {
+  if (!PLATFORM.hideDockInIsland || !app.dock) return
+  try {
+    if (visible) app.dock.show()
+    else app.dock.hide()
+  } catch (_error) {
+    /* the Dock is optional */
+  }
+}
+
+/** Keep the island in the right window band (macOS needs an explicit `floating`). */
+function applyTopmost(on) {
+  if (!mainWindow || mainWindow.isDestroyed()) return
+  if (PLATFORM.topmostLevel) mainWindow.setAlwaysOnTop(on, PLATFORM.topmostLevel)
+  else mainWindow.setAlwaysOnTop(on)
+  if (PLATFORM.mac && on) {
+    mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
+  }
+}
+
+/** macOS: a window raised from a helper process is not necessarily frontmost. */
+function stealFocus() {
+  if (!PLATFORM.mac || !mainWindow || mainWindow.isDestroyed()) return
+  app.focus({ steal: true })
+}
+
 function createTray() {
   try {
-    const image = nativeImage.createFromPath(iconPath)
+    const image = nativeImage.createFromPath(trayIconPath)
     if (image.isEmpty()) return
-    tray = new Tray(image.resize({ width: 16, height: 16 }))
+    // A template image lets macOS invert the menu-bar icon for dark and light bars.
+    if (PLATFORM.templateTrayIcon) image.setTemplateImage(true)
+    tray = new Tray(PLATFORM.templateTrayIcon ? image : image.resize({ width: 16, height: 16 }))
     tray.setToolTip('快捷面板')
     tray.setContextMenu(
       Menu.buildFromTemplate([
@@ -241,6 +295,18 @@ function createTray() {
   } catch (_error) {
     /* the tray is optional */
   }
+}
+
+/**
+ * macOS draws the menu bar from the application menu, and that menu is also what
+ * supplies Cmd+C/V/A/W/Q. Dropping it (as Windows does with `setMenu(null)`)
+ * would leave the quick-input box unable to paste.
+ */
+function installApplicationMenu() {
+  if (!PLATFORM.keepApplicationMenu) return
+  Menu.setApplicationMenu(
+    Menu.buildFromTemplate([{ role: 'appMenu' }, { role: 'editMenu' }, { role: 'windowMenu' }]),
+  )
 }
 
 function createWindow() {
@@ -263,6 +329,9 @@ function createWindow() {
     backgroundColor: '#101318',
     title: '快捷面板',
     icon: fs.existsSync(iconPath) ? iconPath : undefined,
+    // macOS: the first click should reach the control under the cursor even when
+    // the companion is not the active app yet.
+    acceptFirstMouse: PLATFORM.mac,
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
@@ -271,7 +340,9 @@ function createWindow() {
     },
   })
 
-  mainWindow.setMenu(null)
+  // `win.setMenu` is Windows/Linux only, and on macOS the application menu must
+  // stay because it carries Cmd+C/V/W/Q — see installApplicationMenu().
+  if (!PLATFORM.mac) mainWindow.setMenu(null)
   let launchUrl = target
   try {
     const url = new URL(target)
@@ -292,6 +363,7 @@ function createWindow() {
     mainWindow.show()
     mainWindow.focus()
     if (typeof mainWindow.moveTop === 'function') mainWindow.moveTop()
+    stealFocus()
   }
   mainWindow.once('ready-to-show', raiseWindow)
   mainWindow.webContents.once('did-finish-load', raiseWindow)
@@ -367,7 +439,9 @@ if (!allowed) {
 
   app.whenReady().then(() => {
     createWindow()
+    installApplicationMenu()
     createTray()
+    setDockVisible(false)
     setInterval(() => {
       if (!quitting) enforceIslandSize()
     }, 2000)
@@ -431,10 +505,36 @@ if (!allowed) {
     ipcMain.handle('qp:drag-end', () => {
       dragState = null
     })
+    // macOS frameless windows have no native resize edge, so the panel draws its
+    // own bottom grip and drives the height through these three calls.
+    ipcMain.handle('qp:resize-start', (_event, y) => {
+      if (!mainWindow || mainWindow.isDestroyed() || mode !== 'panel') return
+      const bounds = mainWindow.getBounds()
+      resizeState = { cursorY: Number(y) || 0, height: bounds.height, y: bounds.y }
+    })
+    ipcMain.handle('qp:resize-move', (_event, y) => {
+      if (!resizeState || !mainWindow || mainWindow.isDestroyed() || mode !== 'panel') return
+      if (!Number.isFinite(y)) return
+      const area = screen.getDisplayMatching(mainWindow.getBounds()).workArea
+      const height = Math.min(
+        Math.max(resizeState.height + Math.round(y - resizeState.cursorY), PANEL_MIN_HEIGHT),
+        area.height,
+      )
+      const bounds = mainWindow.getBounds()
+      programmaticResize = true
+      mainWindow.setBounds({ x: bounds.x, y: resizeState.y, width: PANEL_WIDTH, height })
+      setTimeout(() => {
+        programmaticResize = false
+      }, 80)
+    })
+    ipcMain.handle('qp:resize-end', () => {
+      resizeState = null
+      queueSave()
+    })
     ipcMain.handle('qp:pin', () => {
       pinned = !pinned
       if (mainWindow && !mainWindow.isDestroyed() && mode === 'panel') {
-        mainWindow.setAlwaysOnTop(pinned)
+        applyTopmost(pinned)
       }
       persist()
       return pinned
@@ -451,7 +551,7 @@ if (!allowed) {
           click: () => {
             pinned = !pinned
             if (mainWindow && !mainWindow.isDestroyed() && mode === 'panel') {
-              mainWindow.setAlwaysOnTop(pinned)
+              applyTopmost(pinned)
             }
             persist()
           },
@@ -471,6 +571,12 @@ if (!allowed) {
   app.on('before-quit', () => {
     quitting = true
   })
+  // macOS: clicking the Dock icon while the panel is collapsed reopens it.
+  if (PLATFORM.mac) {
+    app.on('activate', () => {
+      if (mainWindow && !mainWindow.isDestroyed()) setMode('panel')
+    })
+  }
   app.on('window-all-closed', () => {
     /* the window is reused for panel/island; quit only from the tray */
   })

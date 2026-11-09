@@ -2,6 +2,13 @@
 
 const { contextBridge, ipcRenderer } = require('electron')
 
+/**
+ * macOS frameless windows have no native resize edge, so the panel exposes a
+ * bottom grip that drives the height through the main process. Other platforms
+ * keep the native edge and never see the grip.
+ */
+const RESIZABLE_PANEL = process.platform === 'darwin'
+
 contextBridge.exposeInMainWorld('quickPanelDesktop', {
   minimize: () => ipcRenderer.invoke('qp:minimize'),
   close: () => ipcRenderer.invoke('qp:close'),
@@ -17,6 +24,10 @@ contextBridge.exposeInMainWorld('quickPanelDesktop', {
   dragStart: (x, y) => ipcRenderer.invoke('qp:drag-start', x, y),
   dragMove: (x, y) => ipcRenderer.invoke('qp:drag-move', x, y),
   dragEnd: () => ipcRenderer.invoke('qp:drag-end'),
+  supportsResize: RESIZABLE_PANEL,
+  resizeStart: (y) => ipcRenderer.invoke('qp:resize-start', y),
+  resizeMove: (y) => ipcRenderer.invoke('qp:resize-move', y),
+  resizeEnd: () => ipcRenderer.invoke('qp:resize-end'),
   togglePin: () => ipcRenderer.invoke('qp:pin'),
   pinState: () => ipcRenderer.invoke('qp:pin-state'),
 })

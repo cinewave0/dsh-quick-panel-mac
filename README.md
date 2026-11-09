@@ -14,9 +14,13 @@ DSH Desktop 的快捷面板插件：在 DSH 窗口内提供一个浮岛与面板
 
 ## 环境要求
 
-- Windows（独立小应用依赖 Electron 与 Windows 窗口 API）。
+- Windows 10/11 或 macOS 12+（独立小应用依赖 Electron 的窗口 API）。
 - DSH Desktop（Host 半区需要 `webServer` 与 `sessionController`）。
-- 独立小应用复用 `%USERPROFILE%\.dsh\electron\electron.exe`（通常由 dsh-pet 下载）。缺失时打开独立窗会提示失败。
+- 独立小应用复用 `$DSH_HOME/electron` 下的 Electron（通常由 dsh-pet 下载，缺失时可运行 dsh-pet 的 `scripts/ensure-electron.mjs`）：
+  - Windows：`%USERPROFILE%\.dsh\electron\electron.exe`
+  - macOS：`~/.dsh/electron/Electron.app/Contents/MacOS/Electron`
+
+  路径缺失时打开独立窗会提示 `electron-missing`；指向别处的 Electron 可设 `DSH_QUICK_PANEL_ELECTRON`。
 
 ## 安装
 
@@ -38,13 +42,13 @@ https://cinewave0.github.io/cinewave0-dsh-quick-panel/market/index.json
 
 从 [Releases](https://github.com/cinewave0/cinewave0-dsh-quick-panel/releases) 下载 `dsh-quick-panel-1.0.4-beta.1.tgz`，用 `SHA256SUMS` 校验，然后：
 
-```powershell
-dsh plugin --profile desktop add <下载目录>\dsh-quick-panel-1.0.4-beta.1.tgz
+```sh
+dsh plugin --profile desktop add <下载目录>/dsh-quick-panel-1.0.4-beta.1.tgz
 ```
 
 ### 方式三：git commit
 
-```powershell
+```sh
 dsh plugin --profile desktop add "git+https://github.com/cinewave0/cinewave0-dsh-quick-panel.git#88984c0df6ee39fa94023332a95042a351817dc4"
 ```
 
@@ -86,9 +90,12 @@ dsh plugin --profile desktop add "git+https://github.com/cinewave0/cinewave0-dsh
 
 ## 数据
 
-- 共享存储：`%USERPROFILE%\.dsh\quick-panel\state.json`（待办、提醒、设置、当前会话 id）
-- 窗口位置：`%USERPROFILE%\.dsh\quick-panel\window.json`
-- 启动诊断：`%USERPROFILE%\.dsh\quick-panel\helper.log`
+路径以 `$DSH_HOME`（Windows `%USERPROFILE%\.dsh`，macOS `~/.dsh`）为根：
+
+- 共享存储：`$DSH_HOME/quick-panel/state.json`（待办、提醒、设置、当前会话 id）
+- 窗口位置：`$DSH_HOME/quick-panel/window.json`
+- 启动诊断：`$DSH_HOME/quick-panel/helper.log`
+- 独立窗 Chromium profile（仅 macOS）：`$DSH_HOME/quick-panel/user-data`（macOS 默认 userData 会被所有裸跑 Electron 的脚本共用，单实例锁也落在里面；Windows 位置不变）
 - DSH 面板的本地数据会在启动时迁移到 Host 存储；Host 不可用时回退 localStorage。
 
 ## 常见问题
@@ -113,7 +120,8 @@ dsh plugin --profile desktop add "git+https://github.com/cinewave0/cinewave0-dsh
 
 ## 已知限制
 
-- 仅 Windows；独立小应用依赖 DSH 运行与 `$DSH_HOME/electron`；
+- 支持 Windows 与 macOS；独立小应用依赖 DSH 运行与 `$DSH_HOME/electron`；
+- macOS 差异：浮岛不占 Dock（`app.dock.hide()`）、无边框窗没有系统缩放边（面板高度由底部自绘 grip 拖动）、菜单栏图标用模板图（随深浅色自动反色）、通知以 Electron 身份出现（未做 `.app` 签名打包）；
 - 独立窗实时消息：Host 能在 DSH 离开对话页后继续镜像新的已结算事件，并在上滚时从 Host 会话事件加载更早；流式 partial 仍依赖 DSH 对话页；
 - 独立窗问题卡：当前会话的 pending 问题会镜像；多题用上一题/下一题，提交后等待 DSH 确认；
 - 独立窗会话切换：数字按钮只负责发起请求，真正切换发生在 DSH 页面内的客户端插件（轮询间隔约 2.5 秒）；DSH 页面关闭或插件未加载时请求会在 30 秒后过期，界面不报错也不切换；
@@ -143,13 +151,14 @@ test/                        Host 回归、客户端 bundle/适配层/源码导�
 
 ## 开发命令
 
-```powershell
+```sh
 node scripts/build-client.mjs                    # 由 src/client 生成 client.js
 node test/host.test.mjs                          # Host 回归（11 项）
 node test/client-bundle.test.mjs                 # 客户端 bundle 信封/工厂形状
 node test/dsh-adapter.test.mjs                   # DSH 服务适配层与降级路径
 node test/source-imports.test.mjs                # 源码模块导入完整性
-node test/panel.test.mjs                         # Electron 面板集成测试（需 electron.exe）
+node test/platform.test.mjs                      # 平台规则（托盘/Dock/置顶/菜单）
+node test/panel.test.mjs                         # Electron 面板集成测试（需 $DSH_HOME/electron）
 npm run lint                                     # oxlint（0 warning 门槛）
 node scripts/backup.mjs                          # 备份到 ../backups（zip + sha256 + manifest）
 node scripts/sync-github.mjs --message "..."     # 提交 + 测试 + push

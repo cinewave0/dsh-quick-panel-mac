@@ -1781,6 +1781,34 @@ function wireWindowControls() {
       grip.addEventListener('pointercancel', onEnd)
     })
   }
+  // macOS only: frameless windows have no native resize edge, so the panel keeps
+  // its own bottom grip. `supportsResize` comes from the preload.
+  const resizeGrip = $('resize-grip')
+  if (resizeGrip && desktop.supportsResize && typeof desktop.resizeStart === 'function') {
+    resizeGrip.hidden = false
+    resizeGrip.addEventListener('pointerdown', (event) => {
+      if (event.button !== 0) return
+      event.preventDefault()
+      try {
+        resizeGrip.setPointerCapture(event.pointerId)
+      } catch (_error) {
+        /* pointer capture is best effort */
+      }
+      void desktop.resizeStart(event.screenY)
+      const onMove = (moveEvent) => {
+        void desktop.resizeMove(moveEvent.screenY)
+      }
+      const onEnd = () => {
+        resizeGrip.removeEventListener('pointermove', onMove)
+        resizeGrip.removeEventListener('pointerup', onEnd)
+        resizeGrip.removeEventListener('pointercancel', onEnd)
+        void desktop.resizeEnd()
+      }
+      resizeGrip.addEventListener('pointermove', onMove)
+      resizeGrip.addEventListener('pointerup', onEnd)
+      resizeGrip.addEventListener('pointercancel', onEnd)
+    })
+  }
   if (typeof desktop.getMode === 'function') {
     const syncMode = () => {
       Promise.resolve(desktop.getMode()).then(

@@ -2017,3 +2017,40 @@ body.mode-island .done-toast {
     animation: none;
   }
 }
+
+/*
+ * macOS only: a frameless window has no native resize edge, so the panel draws
+ * its own bottom grip. Hidden unless the preload reports `supportsResize`.
+ */
+.resize-grip {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 7px;
+  z-index: 60;
+  cursor: ns-resize;
+  -webkit-app-region: no-drag;
+  display: none;
+}
+
+.resize-grip:not([hidden]) {
+  display: block;
+}
+
+.resize-grip::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 2px;
+  width: 44px;
+  height: 3px;
+  margin-left: -22px;
+  border-radius: 2px;
+  background: var(--border);
+  opacity: 0.9;
+}
+
+body.mode-island .resize-grip {
+  display: none;
+}

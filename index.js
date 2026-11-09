@@ -48,12 +48,22 @@ const panelDirectory = join(packageRoot, 'panel')
 /** Wait for the HTTP carrier before registering the shared store routes. */
 export const inject = ['webServer']
 
+/** Electron's executable inside the per-platform `$DSH_HOME/electron` landing directory. */
+const ELECTRON_RELATIVE =
+  process.platform === 'win32'
+    ? 'electron.exe'
+    : process.platform === 'darwin'
+      ? join('Electron.app', 'Contents', 'MacOS', 'Electron')
+      : 'electron'
+
+/** Only Windows reports the sandbox init crash through these NTSTATUS exit codes. */
+const SANDBOX_FALLBACK_SUPPORTED = process.platform === 'win32'
+
 function electronExecutable() {
-  if (process.platform !== 'win32') return null
   const explicit = process.env.DSH_QUICK_PANEL_ELECTRON
   if (explicit && existsSync(explicit)) return explicit
   const home = process.env.DSH_HOME || join(homedir(), '.dsh')
-  const candidate = join(home, 'electron', 'electron.exe')
+  const candidate = join(home, 'electron', ELECTRON_RELATIVE)
   return existsSync(candidate) ? candidate : null
 }
 
@@ -1162,7 +1172,12 @@ export function apply(ctx) {
       note(`exit code=${code} signal=${signal}`)
       if (child === spawned) child = null
       const sandboxCrash = code === 2147483651 || code === -2147483645
-      if (!sandboxFallback && sandboxCrash && Date.now() - startedAt < 5000) {
+      if (
+        SANDBOX_FALLBACK_SUPPORTED &&
+        !sandboxFallback &&
+        sandboxCrash &&
+        Date.now() - startedAt < 5000
+      ) {
         sandboxFallback = true
         note('sandbox init failure; retrying with --no-sandbox')
         launchWindow(executable, main, url)

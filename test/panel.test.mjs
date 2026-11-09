@@ -1,13 +1,23 @@
 import { createServer } from 'node:http'
-import { readFileSync, rmSync } from 'node:fs'
+import { existsSync, readFileSync, rmSync } from 'node:fs'
 import { spawn } from 'node:child_process'
 import { join } from 'node:path'
 
 const root = join(import.meta.dirname, '..')
 const panelRoot = join(root, 'panel')
 const origin = 'http://127.0.0.1:38922'
+const ELECTRON_RELATIVE =
+  process.platform === 'win32'
+    ? 'electron.exe'
+    : process.platform === 'darwin'
+      ? join('Electron.app', 'Contents', 'MacOS', 'Electron')
+      : 'electron'
 const dshHome = process.env.DSH_HOME || join(process.env.USERPROFILE || process.env.HOME || '', '.dsh')
-const electron = process.env.DSH_ELECTRON || join(dshHome, 'electron', 'electron.exe')
+const electron = process.env.DSH_ELECTRON || join(dshHome, 'electron', ELECTRON_RELATIVE)
+if (!existsSync(electron)) {
+  console.error(`panel test needs Electron at ${electron}; set DSH_ELECTRON or install $DSH_HOME/electron`)
+  process.exit(1)
+}
 const png = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAEklEQVR4nGM8oaHBwMDAxAAGAA3qARx2dNdFAAAAAElFTkSuQmCC',
   'base64',
@@ -277,6 +287,11 @@ const server = createServer((request, response) => {
 })
 await new Promise((resolve) => server.listen(38922, '127.0.0.1', resolve))
 
+// The DSH host runs with ELECTRON_RUN_AS_NODE=1 inherited from the app that
+// spawned it; leaving it set would start Electron as plain Node.
+const childEnv = { ...process.env, PANEL_TEST_ORIGIN: origin }
+delete childEnv.ELECTRON_RUN_AS_NODE
+
 const child = spawn(
   electron,
   [
@@ -285,7 +300,7 @@ const child = spawn(
     `--user-data-dir=${join(import.meta.dirname, '.userdata')}`,
     join(import.meta.dirname, 'panel-main.cjs'),
   ],
-  { stdio: 'inherit', env: { ...process.env, PANEL_TEST_ORIGIN: origin } },
+  { stdio: 'inherit', env: childEnv },
 )
 const code = await new Promise((resolve) => child.on('exit', resolve))
 server.close()

@@ -11,7 +11,11 @@ permissions:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v5
@@ -38,6 +42,8 @@ jobs:
           node --check client.js
           node --check panel/panel.js
           node --check runtime/electron-helper/main.cjs
+          node --check runtime/electron-helper/platform.cjs
+          node --check runtime/electron-helper/preload.cjs
           node --check scripts/backup.mjs
           node --check scripts/sync-github.mjs
           node --check scripts/make-market-index.mjs
@@ -53,6 +59,9 @@ jobs:
 
       - name: Adapter tests
         run: node test/dsh-adapter.test.mjs
+
+      - name: Platform rules
+        run: node test/platform.test.mjs
 
       - name: Package contents
         run: npm pack --dry-run

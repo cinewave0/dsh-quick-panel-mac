@@ -49,7 +49,8 @@ vm.createContext(context)
 vm.runInContext(code, context, { filename: 'client.js' })
 
 assert.ok(captured, 'ModuleLoader.load was not called')
-assert.equal(captured.id, 'dsh-quick-panel')
+const { name } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
+assert.equal(captured.id, name, 'the client module id must match the package name')
 assert.equal(typeof captured.factory, 'function')
 
 const react = new Proxy(

@@ -7,17 +7,17 @@
 | 项 | 决定 |
 |---|---|
 | 目标 | 在 macOS 上实现与 `v1.0.4-beta.1` 等价的功能通路 |
-| 代码位置 | 独立分支 `feat/macos`，**不合并进 `main`** |
-| Windows | **零改动**。所有代码都在 `PLATFORM.mac` 分支内；没有 Windows 环境时不碰 Windows 路径（见仓库 `AGENTS.md`） |
+| 代码位置 | **独立仓库** `cinewave0/dsh-quick-panel-mac`，`main` 即发布线 |
+| Windows | 在另一个仓库（`cinewave0/cinewave0-dsh-quick-panel`），本仓库不改它的行为 |
 | 发布 | 本阶段不发布。要发布时按第 9 节走 |
 
 ## 2. 代码与环境
 
-- GitHub：<https://github.com/cinewave0/cinewave0-dsh-quick-panel>，分支 `feat/macos`
-- 本地工作副本：`/tmp/qp`（**注意：`/tmp` 会被系统清理**，长期保存用第 10 节的备份）
-- 本机备份：`~/dsh/backups/quick-panel-1.0.4-beta.1-20261109-135858-mac-port.zip`（含 `.git` 全历史，sha256 见同名 `.sha256`）
+- GitHub：<https://github.com/cinewave0/dsh-quick-panel-mac>（`main`）
+- 本地工作副本：`/tmp/qpmac-repo`（**注意：`/tmp` 会被系统清理**，长期保存用第 10 节的备份）
+- 本机备份：`~/dsh/backups/quick-panel-1.0.4-beta.1-*-mac-port.zip`（含 `.git` 全历史，sha256 见同名 `.sha256`）
 - Electron：`~/.dsh/electron/Electron.app/Contents/MacOS/Electron`（43.3.0，由 dsh-pet 下载）
-- 安装方式：以 `link:` 挂载进桌面版 profile（`~/.dsh/profiles/desktop/package.json` 里的 `dsh-quick-panel: link:/tmp/qp`）
+- 安装方式：以 `link:` 挂载进桌面版 profile（`~/.dsh/profiles/desktop/package.json` 里的 `dsh-quick-panel-mac: link:/tmp/qpmac-repo`）
 
 ## 3. 三方架构
 
@@ -118,6 +118,6 @@ env -u ELECTRON_RUN_AS_NODE node test/panel.test.mjs
 - 从本机 profile 卸载插件：DSH 设置 → 插件 → 卸载；或 `plugin_manager remove_bundle target=dsh-quick-panel`。
 - 清理运行痕迹：`rm -rf ~/.dsh/quick-panel`（窗口位置、helper.log、Chromium profile）。
 
-## 11. 与 Windows 主线的唯一交集
+## 11. 与 Windows 仓库的关系
 
-`feat/macos` 是从 `main@d4f203b` 快进出来的，合并是 fast-forward。但**按当前决定不合并**：Windows 的问题在 Windows 上发现和修复，不在这个分支做。
+本仓库是从 Windows 仓库 `main@d4f203b` 分出来的独立项目，只发布 macOS 版。两个仓库各自打 tag、各自发 Release、各自有 Pages 索引；**不合并、不同步**。Windows 的问题在 Windows 仓库里发现和修复。

@@ -1,6 +1,6 @@
 # 发布到 DSH 插件市场
 
-仓库：<https://github.com/cinewave0/cinewave0-dsh-quick-panel>
+仓库：<https://github.com/cinewave0/dsh-quick-panel-mac>
 
 **当前状态：GitHub 路线（npm 暂缓）。仓库转 public 后，在 Settings → Pages 开启 `main / (root)`，索引固定到 v1.0.4-beta.1 的 commit `88984c0df6ee39fa94023332a95042a351817dc4`。**
 
@@ -8,7 +8,7 @@ DSH 市场不是上传到某个后台，而是读取一个 **HTTPS 上的 plugin
 本项目的索引文件是 `market/index.json`，发布后地址为：
 
 ```text
-https://cinewave0.github.io/cinewave0-dsh-quick-panel/market/index.json
+https://cinewave0.github.io/dsh-quick-panel-mac/market/index.json
 ```
 
 GitHub 只负责托管源码、索引和详情页；是否出现在“官方市场”还取决于官方索引是否收录，需要向官方索引提 PR 或联系维护方。
@@ -18,7 +18,7 @@ GitHub 只负责托管源码、索引和详情页；是否出现在“官方市�
 在 GitHub 创建一个 **空仓库**：
 
 ```text
-cinewave0/cinewave0-dsh-quick-panel
+cinewave0/dsh-quick-panel-mac
 ```
 
 不要勾选自动生成 README、.gitignore 或 LICENSE。
@@ -48,7 +48,7 @@ git add market/index.json
 git commit -m "market: add v1.0.0"
 git tag v1.0.0
 
-git remote add origin https://github.com/cinewave0/cinewave0-dsh-quick-panel.git
+git remote add origin https://github.com/cinewave0/dsh-quick-panel-mac.git
 git push -u origin main --tags
 ```
 
@@ -63,7 +63,7 @@ git push -u origin main --tags
 保存后等 1–2 分钟，访问：
 
 ```text
-https://cinewave0.github.io/cinewave0-dsh-quick-panel/market/index.json
+https://cinewave0.github.io/dsh-quick-panel-mac/market/index.json
 ```
 
 能看到 JSON 就说明市场索引可读。
@@ -74,14 +74,14 @@ https://cinewave0.github.io/cinewave0-dsh-quick-panel/market/index.json
 
 DSH → Plugins → Discover / Settings：
 
-- 添加 index URL：`https://cinewave0.github.io/cinewave0-dsh-quick-panel/market/index.json`
+- 添加 index URL：`https://cinewave0.github.io/dsh-quick-panel-mac/market/index.json`
 - 搜索 `Quick Panel`
 - 安装 1.0.0
 
 或者在 agent 里用 `plugin_manager` 安装固定 commit：
 
 ```text
-install_bundle target = git+https://github.com/cinewave0/cinewave0-dsh-quick-panel.git#<40位commit>
+install_bundle target = git+https://github.com/cinewave0/dsh-quick-panel-mac.git#<40位commit>
 ```
 
 安装 bundle 会执行 Host 代码，需要 Full access 或审批。
@@ -178,7 +178,7 @@ node scripts/sync-github.mjs --tags --message "release: v1.0.2"
 3. 确认索引可访问且格式正确：
 
 ```powershell
-curl.exe -sS https://cinewave0.github.io/cinewave0-dsh-quick-panel/market/index.json
+curl.exe -sS https://cinewave0.github.io/dsh-quick-panel-mac/market/index.json
 ```
 
 4. `market/index.json` 的 source 用 **git commit**，指向已发布的 tag 对应 commit；

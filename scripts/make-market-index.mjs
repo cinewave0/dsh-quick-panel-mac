@@ -5,7 +5,7 @@ import { join } from 'node:path'
 const root = process.cwd()
 const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'))
 const owner = 'cinewave0'
-const repo = 'cinewave0-dsh-quick-panel'
+const repo = 'dsh-quick-panel-mac'
 const commit = process.argv[2]
   ? process.argv[2].trim()
   : execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim()
@@ -21,7 +21,7 @@ const index = {
   },
   description: {
     en: 'Standalone quick panel for DSH: todos, reminders, live session view and quick input.',
-    zh: 'DSH 独立快捷面板：待办、提醒、实时消息和快速输入。',
+    zh: 'DSH 快捷面板（macOS 版）：待办、提醒、实时消息和快速输入。',
   },
   plugins: [
     {
@@ -32,7 +32,7 @@ const index = {
       },
       description: {
         en: 'A standalone DSH companion window with todos, reminders, live messages, approvals and quick input.',
-        zh: '带待办、提醒、实时消息、审批和快速输入的 DSH 独立伴生窗。',
+        zh: 'macOS 上的 DSH 独立伴生窗：待办、提醒、实时消息、审批和快速输入。',
       },
       author: owner,
       homepage: `https://github.com/${owner}/${repo}`,

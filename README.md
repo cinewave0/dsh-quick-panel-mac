@@ -1,26 +1,28 @@
-# 快捷面板 / Quick Panel
+# 快捷面板 · macOS / Quick Panel for macOS
 
 > 当前版本：1.0.4-beta.1（预发布）
 
-[![CI](https://github.com/cinewave0/cinewave0-dsh-quick-panel/actions/workflows/ci.yml/badge.svg)](https://github.com/cinewave0/cinewave0-dsh-quick-panel/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/cinewave0/cinewave0-dsh-quick-panel)](https://github.com/cinewave0/cinewave0-dsh-quick-panel/releases)
+[![CI](https://github.com/cinewave0/dsh-quick-panel-mac/actions/workflows/ci.yml/badge.svg)](https://github.com/cinewave0/dsh-quick-panel-mac/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/cinewave0/dsh-quick-panel-mac)](https://github.com/cinewave0/dsh-quick-panel-mac/releases)
 
 ![Quick Panel](docs/panel.png)
 
-DSH Desktop 的快捷面板插件：在 DSH 窗口内提供一个浮岛与面板，并附带一个可常驻桌面的独立小应用（Electron 伴生窗）。仓库已公开，通过 GitHub Releases 与 Discover 索引分发（npm 发布暂缓）。
+DSH Desktop 的快捷面板插件，**macOS 版**：在 DSH 窗口内提供一个浮岛与面板，并附带一个可常驻桌面的独立小应用（Electron 伴生窗）。
 
-> 改代码前先读 [AGENTS.md](AGENTS.md)：平台差异只能走 `runtime/electron-helper/platform.cjs`；没有 Windows 环境就不要改 Windows 路径。
+- 包名：`dsh-quick-panel-mac`，组合包声明 `dsh.bundle.platforms: ["darwin"]`，Windows 上不会出现也不会被启用。
+- Windows 版在另一个仓库：[cinewave0/cinewave0-dsh-quick-panel](https://github.com/cinewave0/cinewave0-dsh-quick-panel)。两个仓库独立发布，互不影响。
+- 分发：GitHub Releases + 本仓库自己的 Discover 索引（不发布 npm）。
+
+> 改代码前先读 [AGENTS.md](AGENTS.md)：本仓库只发布 macOS 版；平台差异只能走 `runtime/electron-helper/platform.cjs`，Windows 路径保持与上游一致、不要在这里改。
 
 - **DSH 内**：侧边栏入口 → 顶部浮岛 → 下拖面板；待办、提醒、实时消息、快速输入。
-- **独立小应用**：默认顶部浮岛（360×48，置顶、不占任务栏），点开为 440 宽面板；托盘常驻；关闭面板只收起为浮岛。
+- **独立小应用**：默认顶部浮岛（360×48，置顶、不占 Dock），点开为 440 宽面板；菜单栏图标常驻；关闭面板只收起为浮岛。
 
 ## 环境要求
 
-- Windows 10/11 或 macOS 12+（独立小应用依赖 Electron 的窗口 API）。
+- **macOS 12+**（独立小应用依赖 Electron 的窗口 API）。
 - DSH Desktop（Host 半区需要 `webServer` 与 `sessionController`）。
-- 独立小应用复用 `$DSH_HOME/electron` 下的 Electron（通常由 dsh-pet 下载，缺失时可运行 dsh-pet 的 `scripts/ensure-electron.mjs`）：
-  - Windows：`%USERPROFILE%\.dsh\electron\electron.exe`
-  - macOS：`~/.dsh/electron/Electron.app/Contents/MacOS/Electron`
+- Electron：`~/.dsh/electron/Electron.app/Contents/MacOS/Electron`（通常由 dsh-pet 下载，缺失时可运行 dsh-pet 的 `scripts/ensure-electron.mjs`）。
 
   路径缺失时打开独立窗会提示 `electron-missing`；指向别处的 Electron 可设 `DSH_QUICK_PANEL_ELECTRON`。
 
@@ -33,7 +35,7 @@ DSH Desktop 的快捷面板插件：在 DSH 窗口内提供一个浮岛与面板
 插件 → 发现 → 添加索引源：
 
 ```text
-https://cinewave0.github.io/cinewave0-dsh-quick-panel/market/index.json
+https://cinewave0.github.io/dsh-quick-panel-mac/market/index.json
 ```
 
 然后搜索 **Quick Panel** 安装 `1.0.4-beta.1`。索引固定到 v1.0.4-beta.1 的 Git commit。
@@ -42,7 +44,7 @@ https://cinewave0.github.io/cinewave0-dsh-quick-panel/market/index.json
 
 ### 方式二：Release 包
 
-从 [Releases](https://github.com/cinewave0/cinewave0-dsh-quick-panel/releases) 下载 `dsh-quick-panel-1.0.4-beta.1.tgz`，先用 `SHA256SUMS` 校验：
+从 [Releases](https://github.com/cinewave0/dsh-quick-panel-mac/releases) 下载 `dsh-quick-panel-mac-1.0.4-beta.1.tgz`，先用 `SHA256SUMS` 校验：
 
 ```sh
 shasum -a 256 -c SHA256SUMS          # macOS / Linux
@@ -52,7 +54,7 @@ certutil -hashfile <tgz> SHA256      # Windows，与 SHA256SUMS 里的值比对
 然后在 DSH 插件页的安装入口填 tgz 的**绝对路径**；装了 `dsh` CLI 的环境也可以直接用命令行：
 
 ```sh
-dsh plugin --profile desktop add /绝对路径/dsh-quick-panel-1.0.4-beta.1.tgz
+dsh plugin --profile desktop add /绝对路径/dsh-quick-panel-mac-1.0.4-beta.1.tgz
 ```
 
 > 桌面版 App 不一定把 `dsh` 命令装进 `PATH`，没有 CLI 时用插件页安装即可。
@@ -60,7 +62,7 @@ dsh plugin --profile desktop add /绝对路径/dsh-quick-panel-1.0.4-beta.1.tgz
 ### 方式三：git commit
 
 ```sh
-dsh plugin --profile desktop add "git+https://github.com/cinewave0/cinewave0-dsh-quick-panel.git#88984c0df6ee39fa94023332a95042a351817dc4"
+dsh plugin --profile desktop add "git+https://github.com/cinewave0/dsh-quick-panel-mac.git#<commit>"
 ```
 
 安装后：

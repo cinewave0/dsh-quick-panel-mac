@@ -5,14 +5,14 @@
 插件 → 发现 → 添加索引源：
 
 ```text
-https://cinewave0.github.io/cinewave0-dsh-quick-panel/market/index.json
+https://cinewave0.github.io/dsh-quick-panel-mac/market/index.json
 ```
 
 然后搜索 **Quick Panel** 安装。索引固定到某个 commit，装完即用。
 
 **方式二：本页的 Release 包**
 
-下载本页附带的 `dsh-quick-panel-<version>.tgz`，先用 `SHA256SUMS` 校验：
+下载本页附带的 `dsh-quick-panel-mac-<version>.tgz`，先用 `SHA256SUMS` 校验：
 
 ```sh
 shasum -a 256 -c SHA256SUMS          # macOS / Linux
@@ -22,13 +22,13 @@ certutil -hashfile <tgz> SHA256      # Windows，与 SHA256SUMS 里的值比对
 然后在 DSH 插件页的安装入口填 tgz 的**绝对路径**；装了 `dsh` CLI 的环境也可以用：
 
 ```sh
-dsh plugin --profile desktop add /绝对路径/dsh-quick-panel-<version>.tgz
+dsh plugin --profile desktop add /绝对路径/dsh-quick-panel-mac-<version>.tgz
 ```
 
 **方式三：钉到 git commit**
 
 ```sh
-dsh plugin --profile desktop add "git+https://github.com/cinewave0/cinewave0-dsh-quick-panel.git#<commit>"
+dsh plugin --profile desktop add "git+https://github.com/cinewave0/dsh-quick-panel-mac.git#<commit>"
 ```
 
 ## 平台要求

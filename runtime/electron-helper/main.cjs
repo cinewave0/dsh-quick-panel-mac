@@ -119,7 +119,15 @@ function panelTarget(workArea) {
 }
 
 function islandTarget(workArea) {
-  if (islandBounds && Number.isFinite(islandBounds.x) && Number.isFinite(islandBounds.y)) {
+  const remembered =
+    islandBounds &&
+    Number.isFinite(islandBounds.x) &&
+    Number.isFinite(islandBounds.y) &&
+    islandBounds.x >= workArea.x - ISLAND_WIDTH &&
+    islandBounds.x <= workArea.x + workArea.width &&
+    islandBounds.y >= workArea.y - ISLAND_HEIGHT &&
+    islandBounds.y <= workArea.y + workArea.height
+  if (remembered) {
     return {
       x: clamp(islandBounds.x, workArea.x, workArea.x + workArea.width - ISLAND_WIDTH),
       y: clamp(islandBounds.y, workArea.y, workArea.y + workArea.height - ISLAND_HEIGHT),
@@ -245,9 +253,15 @@ function setMode(next) {
   // Remembering the panel's own screen meant expanding a moved island opened on
   // the other monitor; and workAreaFor(null) falls back to the primary display,
   // which is exactly the jump this avoids.
+  // macOS: both directions stay on whichever display the window is on right now.
+  // Collapsing used to read the remembered island position, which could be on
+  // another screen, so the island jumped back after a panel on a second display.
+  const current = mainWindow.getBounds()
   const workArea =
-    PLATFORM.mac && next === 'panel'
-      ? workAreaFor(islandBounds)
+    PLATFORM.mac
+      ? next === 'panel'
+        ? workAreaFor(islandBounds || current)
+        : workAreaFor(current)
       : workAreaFor(next === 'island' ? islandBounds : panelBounds)
   if (next === 'island') {
     mode = 'island'

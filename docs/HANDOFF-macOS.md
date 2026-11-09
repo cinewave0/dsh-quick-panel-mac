@@ -51,6 +51,7 @@ Host 半区 index.js（跑在 DSH 主进程）
 | `main.cjs` | `clampReachable`（仅 mac） | 任意屏幕/任意位置；只保证 120×48 露在屏幕内 |
 | `main.cjs` 窗口 | `frame: true` + `titleBarStyle: 'hidden'` + 隐藏红绿灯 | 无边框窗在 macOS 没有系统缩放边；带边框才能原生拖高度 |
 | `main.cjs` `panelTarget` | 宽度锁 440（min=max），高度由系统边缘拖动；首次 720，之后用记住的高度 | 高度是用户偏好，宽度是设计 |
+| `main.cjs` `setMode` | 面板/浮岛切换都以**窗口当前所在屏**为准，记忆位置只在该屏内才采用 | 否则在副屏收起会把浮岛甩回主屏 |
 | `panel/trayTemplate*.png` | 16/32 模板图 | 菜单栏图标必须纯黑+alpha，系统自动反色 |
 
 ## 5. 踩过的坑（最重要的一节）

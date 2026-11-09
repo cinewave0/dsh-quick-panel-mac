@@ -27,6 +27,18 @@
       "icon": "../icon.svg",
       "versions": [
         {
+          "version": "1.0.4",
+          "publishTimestamp": 1794235099,
+          "source": {
+            "type": "git",
+            "url": "https://github.com/cinewave0/dsh-quick-panel-mac",
+            "commit": "b78a24a59ff335fe29604cd4ed4a1809c01755c2"
+          },
+          "engines": {
+            "dsh": ">=0.2.2-rc.1 <0.3.0"
+          }
+        },
+        {
           "version": "1.0.4-beta.6",
           "publishTimestamp": 1794234132,
           "source": {

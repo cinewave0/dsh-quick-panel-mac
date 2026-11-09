@@ -26,7 +26,7 @@ DSH Desktop 的快捷面板插件：在 DSH 窗口内提供一个浮岛与面板
 
 ## 安装
 
-本插件目前走 **GitHub 分发**（npm 发布暂缓）。
+本项目**不发布 npm**，只有三个渠道：DSH 插件页（Discover 索引）、Release 包、git commit。
 
 ### 方式一：DSH 插件市场（Discover）
 
@@ -42,11 +42,20 @@ https://cinewave0.github.io/cinewave0-dsh-quick-panel/market/index.json
 
 ### 方式二：Release 包
 
-从 [Releases](https://github.com/cinewave0/cinewave0-dsh-quick-panel/releases) 下载 `dsh-quick-panel-1.0.4-beta.1.tgz`，用 `SHA256SUMS` 校验，然后：
+从 [Releases](https://github.com/cinewave0/cinewave0-dsh-quick-panel/releases) 下载 `dsh-quick-panel-1.0.4-beta.1.tgz`，先用 `SHA256SUMS` 校验：
 
 ```sh
-dsh plugin --profile desktop add <下载目录>/dsh-quick-panel-1.0.4-beta.1.tgz
+shasum -a 256 -c SHA256SUMS          # macOS / Linux
+certutil -hashfile <tgz> SHA256      # Windows，与 SHA256SUMS 里的值比对
 ```
+
+然后在 DSH 插件页的安装入口填 tgz 的**绝对路径**；装了 `dsh` CLI 的环境也可以直接用命令行：
+
+```sh
+dsh plugin --profile desktop add /绝对路径/dsh-quick-panel-1.0.4-beta.1.tgz
+```
+
+> 桌面版 App 不一定把 `dsh` 命令装进 `PATH`，没有 CLI 时用插件页安装即可。
 
 ### 方式三：git commit
 

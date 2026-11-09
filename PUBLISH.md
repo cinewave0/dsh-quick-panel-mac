@@ -162,14 +162,14 @@ node test/panel.test.mjs
 3. 构建 + 校验产物 + lint + 客户端/Host 测试；
 4. `npm pack` 并生成 `SHA256SUMS`；
 5. 创建 GitHub Release，附上 tgz 和校验和；
-6. 如果仓库配置了 `NPM_TOKEN` secret，再执行 `npm publish`（没有则跳过）。
+6. 用 `.github/release-notes-header.md`（安装方式 + 平台要求）拼接自动生成的变更摘要，写进 Release 说明。
 
 ```powershell
 git tag v1.0.2
 node scripts/sync-github.mjs --tags --message "release: v1.0.2"
 ```
 
-npm 账号没解决之前，先把 Release 作为分发渠道；以后补上 `NPM_TOKEN` 即可自动发布。
+本项目只走 GitHub 分发：Release 提供 `tgz` + `SHA256SUMS`，Pages 索引提供 Discover 入口。**不发布 npm**，流水线里也不再保留 npm 步骤——以前那一步只在配置了 `NPM_TOKEN` 且 tag 非预发布时才会跑，所以 npm 上一直查不到这个包。
 
 ## 11. GitHub 路线正式发布
 
@@ -188,4 +188,4 @@ curl.exe -sS https://cinewave0.github.io/cinewave0-dsh-quick-panel/market/index.
 
 > **待办（2026-11-08）**：`v1.0.4-beta.1` 的 tag 快照是 `1d59b0c`，其 README/`docs/panel.png` 早于之后的文档提交（`c2d6967`、`dbe8150`）。正式版发布时，把 README、`docs/panel.png`、`SECURITY.md`、测试说明与 Release 说明一并刷新，避免 tag 快照与 `main` 不一致。
 
-> npm 发布恢复后，可把 source 切回 `{"type":"npm"}` 并发布对应版本；两种路线可以并存，但索引里一个版本只有一个 source。
+> 索引里的一个版本只能有一个 source，本项目统一用 `git`（钉 commit）；不使用 npm source。

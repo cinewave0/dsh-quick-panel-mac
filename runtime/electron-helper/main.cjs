@@ -14,7 +14,7 @@ const ISLAND_HEIGHT = 48
 
 const PLATFORM = companionPlatform(process.platform)
 
-app.setName('dsh-quick-panel')
+app.setName('dsh-quick-panel-mac')
 
 const urlArgument = process.argv.find((value) => value.startsWith('--url='))
 const target =

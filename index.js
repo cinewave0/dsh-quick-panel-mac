@@ -1,5 +1,5 @@
 /**
- * Host half of dsh-quick-panel.
+ * Host half of dsh-quick-panel-mac.
  *
  * Owns the shared store and the loopback HTTP API used by both the in-window
  * panel and the future standalone Electron companion. The API is small on

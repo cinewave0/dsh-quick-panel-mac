@@ -27,12 +27,12 @@
       "icon": "../icon.svg",
       "versions": [
         {
-          "version": "1.0.4-beta.3",
-          "publishTimestamp": 1794208026,
+          "version": "1.0.4-beta.4",
+          "publishTimestamp": 1794209530,
           "source": {
             "type": "git",
             "url": "https://github.com/cinewave0/dsh-quick-panel-mac",
-            "commit": "7156d6360acf7ca654b1b38023b435ee409956a9"
+            "commit": "048f15f751124b782d121db7dff6423a22de7dc4"
           },
           "engines": {
             "dsh": ">=0.2.2-rc.1 <0.3.0"

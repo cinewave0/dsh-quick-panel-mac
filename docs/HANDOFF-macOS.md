@@ -108,7 +108,7 @@ env -u ELECTRON_RUN_AS_NODE node test/panel.test.mjs
 1. 上面表中 ⏳ 的项逐条人工验（约 10 分钟）。
 2. Space 行为：若切换桌面后窗口弹回原桌面，是 `setVisibleOnAllWorkspaces` 的已知行为，需要改成"跟随当前 Space"或换 `collectionBehavior`。
 3. 通知身份：裸 Electron 二进制在系统里叫 "Electron"（应用名、通知来源都是）。要正名得打成签名的 `.app`，超出当前范围。
-4. 发布：如果要做独立 mac 发布线，需要新包名（如 `dsh-quick-panel-mac`）+ `os: ["darwin"]` + 独立索引条目；`main` 不动。
+4. 发布：**已完成**。独立仓库 `cinewave0/dsh-quick-panel-mac`，包名 `dsh-quick-panel-mac`，`dsh.bundle.platforms: ["darwin"]`，Pages 索引已上线；后续版本在 Windows 仓库之外独立打 `v*` tag 即可自动发布。
 5. Windows 侧：不要在这个分支上改 Windows 路径。`AGENTS.md` 里有"不可动清单"。
 
 ## 10. 备份与回滚

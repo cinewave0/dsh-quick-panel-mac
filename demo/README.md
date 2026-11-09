@@ -13,7 +13,7 @@ npm run demo           # 或 npm run demo -- --keep-state 保留上次窗口位�
 |---|---|
 | `runtime/electron-helper/main.cjs`（窗口、托盘、Dock、置顶） | 真 |
 | `runtime/electron-helper/preload.cjs`（IPC 桥） | 真 |
-| `panel/`（HTML/CSS/JS、resize grip） | 真 |
+| `panel/`（HTML/CSS/JS） | 真 |
 | Host（`index.js` 的 HTTP 接口） | 假，`demo/serve.mjs` 用种子数据模拟 |
 
 所以看到的是要发货的窗口代码，只是消息、待办、余额是假的。状态写进 `demo/.state/`，不碰 `$DSH_HOME`。
@@ -21,7 +21,7 @@ npm run demo           # 或 npm run demo -- --keep-state 保留上次窗口位�
 ## 可以试的
 
 - 点浮岛文字或 `⌃` 展开面板；`⠿` 拖动浮岛；关面板收起回浮岛
-- 拖面板底部中间的小横条改高度（macOS 无边框窗没有系统缩放边）
+- 展开面板：固定 440 宽、高度拉满当前屏；没有可拖的缩放条
 - 菜单栏图标：打开面板 / 收起到浮岛 / 退出
 - 浮岛态 Dock 图标消失，展开面板后回来（macOS）
 - 托盘勾选「面板置顶」再切到别的应用，看面板是否还在最前

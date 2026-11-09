@@ -49,7 +49,7 @@ Host 半区 index.js（跑在 DSH 主进程）
 | `main.cjs` | 启动时补 `applyTopmost(true)` | 启动不走 `setMode()`，原来拿不到置顶带 |
 | `main.cjs` | `activate` 要求 Dock 可见 | macOS 启动时也发 `activate`，否则一启动就弹成大面板 |
 | `main.cjs` | `clampReachable`（仅 mac） | 任意屏幕/任意位置；只保证 120×48 露在屏幕内 |
-| `preload.cjs` + `panel/*` | 底部 resize grip + `qp:resize-*`（仅 mac） | 无边框窗在 mac 上没有系统缩放边 |
+| `main.cjs` `panelTarget` | 固定 440 宽、高度取浮岛所在屏的工作区高度 | mac 上不需要自绘缩放条；尺寸由系统工作区决定 |
 | `panel/trayTemplate*.png` | 16/32 模板图 | 菜单栏图标必须纯黑+alpha，系统自动反色 |
 
 ## 5. 踩过的坑（最重要的一节）
@@ -98,7 +98,7 @@ env -u ELECTRON_RUN_AS_NODE node test/panel.test.mjs
 | 展开成面板、真实数据（余额 ¥560.97、3 会话、30 日 tokens） | ✅ 截图确认 |
 | Dock 隐藏（`UIElement`）、置顶、任意屏幕/位置 | ✅ 进程与窗口状态确认 |
 | 菜单栏图标 | ✅ 已重画并确认 |
-| 拖动浮岛、面板高度拖拽、会话 1/2/3 切换、待办双向同步 | ✅ 人工确认 |
+| 拖动浮岛、会话 1/2/3 切换、待办双向同步 | ✅ 人工确认 |
 | 审批接管（外部认领 + 提示音 + 外部批准） | ✅ 人工确认 |
 | 问题卡镜像（同一张卡在外部提交） | ✅ 人工确认 |
 | 附件上传 / 图片引用镜像 / 原图查看 | ✅ 人工确认 |

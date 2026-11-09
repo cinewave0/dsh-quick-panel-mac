@@ -7,8 +7,8 @@ const path = require('node:path')
 const { companionPlatform } = require('./platform.cjs')
 
 const PANEL_WIDTH = 440
+/** Kept for the non-macOS clamp path; the macOS panel is full height. */
 const PANEL_MIN_HEIGHT = 560
-const PANEL_DEFAULT_HEIGHT = 720
 const ISLAND_WIDTH = 360
 const ISLAND_HEIGHT = 48
 
@@ -50,7 +50,6 @@ let panelBounds = null
 let islandBounds = null
 let saveTimer = 0
 let dragState = null
-let resizeState = null
 let programmaticResize = false
 
 function readPersisted() {
@@ -95,17 +94,24 @@ function workAreaFor(bounds) {
   return screen.getPrimaryDisplay().workArea
 }
 
+/**
+ * The panel is a full-height column: fixed width, height taken from the work
+ * area of whatever display the island is on, so there is nothing to drag.
+ */
 function panelTarget(workArea) {
-  const height = panelBounds && Number.isFinite(panelBounds.height)
-    ? clamp(panelBounds.height, PANEL_MIN_HEIGHT, workArea.height)
-    : Math.min(PANEL_DEFAULT_HEIGHT, workArea.height)
-  const x = panelBounds && Number.isFinite(panelBounds.x)
+  const height = workArea.height
+  const remembered =
+    panelBounds &&
+    Number.isFinite(panelBounds.x) &&
+    panelBounds.x >= workArea.x - PANEL_WIDTH &&
+    panelBounds.x <= workArea.x + workArea.width &&
+    Number.isFinite(panelBounds.y) &&
+    panelBounds.y >= workArea.y - height &&
+    panelBounds.y <= workArea.y + workArea.height
+  const x = remembered
     ? clamp(panelBounds.x, workArea.x, workArea.x + workArea.width - PANEL_WIDTH)
     : Math.round(workArea.x + (workArea.width - PANEL_WIDTH) / 2)
-  const y = panelBounds && Number.isFinite(panelBounds.y)
-    ? clamp(panelBounds.y, workArea.y, workArea.y + workArea.height - height)
-    : Math.round(workArea.y + (workArea.height - height) / 2)
-  return { x, y, width: PANEL_WIDTH, height }
+  return { x, y: workArea.y, width: PANEL_WIDTH, height }
 }
 
 function islandTarget(workArea) {
@@ -149,8 +155,8 @@ function clampToWorkArea(bounds) {
  */
 function clampReachable(bounds) {
   const width = mode === 'island' ? ISLAND_WIDTH : PANEL_WIDTH
-  const minHeight = mode === 'island' ? ISLAND_HEIGHT : PANEL_MIN_HEIGHT
-  const maxHeight = mode === 'island' ? ISLAND_HEIGHT : Math.max(PANEL_MIN_HEIGHT, bounds.height)
+  const minHeight = mode === 'island' ? ISLAND_HEIGHT : bounds.height
+  const maxHeight = mode === 'island' ? ISLAND_HEIGHT : bounds.height
   const height = Math.min(Math.max(bounds.height, minHeight), maxHeight)
   const keptWidth = Math.min(KEEP_VISIBLE_WIDTH, width)
   const keptHeight = Math.min(KEEP_VISIBLE_HEIGHT, height)
@@ -231,25 +237,14 @@ function setMode(next) {
     return
   }
   saveCurrent()
-  // macOS: a panel remembers where it was, but if the island has since moved to
-  // another display, reopening there would put the window on a screen the user
-  // is not looking at. Re-centre on the island's display instead.
-  if (PLATFORM.mac && next === 'panel' && panelBounds && islandBounds) {
-    const islandDisplay = screen.getDisplayMatching({
-      x: islandBounds.x,
-      y: islandBounds.y,
-      width: 1,
-      height: 1,
-    })
-    const panelDisplay = screen.getDisplayMatching({
-      x: panelBounds.x,
-      y: panelBounds.y,
-      width: 1,
-      height: 1,
-    })
-    if (islandDisplay.id !== panelDisplay.id) panelBounds = null
-  }
-  const workArea = workAreaFor(next === 'island' ? islandBounds : panelBounds)
+  // macOS: the panel always opens on the display the island currently occupies.
+  // Remembering the panel's own screen meant expanding a moved island opened on
+  // the other monitor; and workAreaFor(null) falls back to the primary display,
+  // which is exactly the jump this avoids.
+  const workArea =
+    PLATFORM.mac && next === 'panel'
+      ? workAreaFor(islandBounds)
+      : workAreaFor(next === 'island' ? islandBounds : panelBounds)
   if (next === 'island') {
     mode = 'island'
     programmaticResize = true
@@ -274,9 +269,10 @@ function setMode(next) {
   } else {
     mode = 'panel'
     programmaticResize = true
-    mainWindow.setResizable(true)
-    mainWindow.setMinimumSize(PANEL_WIDTH, PANEL_MIN_HEIGHT)
+    // Fixed width and full height: there is no edge or grip to drag.
+    mainWindow.setMinimumSize(PANEL_WIDTH, workArea.height)
     mainWindow.setMaximumSize(PANEL_WIDTH, workArea.height)
+    mainWindow.setResizable(false)
     mainWindow.setSkipTaskbar(false)
     applyTopmost(pinned)
     setDockVisible(true)
@@ -560,32 +556,6 @@ if (!allowed) {
     })
     // macOS frameless windows have no native resize edge, so the panel draws
     // its own bottom grip and drives the height through these three calls.
-    if (PLATFORM.mac) {
-      ipcMain.handle('qp:resize-start', (_event, y) => {
-        if (!mainWindow || mainWindow.isDestroyed() || mode !== 'panel') return
-        const bounds = mainWindow.getBounds()
-        resizeState = { cursorY: Number(y) || 0, height: bounds.height, y: bounds.y }
-      })
-      ipcMain.handle('qp:resize-move', (_event, y) => {
-        if (!resizeState || !mainWindow || mainWindow.isDestroyed() || mode !== 'panel') return
-        if (!Number.isFinite(y)) return
-        const area = screen.getDisplayMatching(mainWindow.getBounds()).workArea
-        const height = Math.min(
-          Math.max(resizeState.height + Math.round(y - resizeState.cursorY), PANEL_MIN_HEIGHT),
-          area.height,
-        )
-        const bounds = mainWindow.getBounds()
-        programmaticResize = true
-        mainWindow.setBounds({ x: bounds.x, y: resizeState.y, width: PANEL_WIDTH, height })
-        setTimeout(() => {
-          programmaticResize = false
-        }, 80)
-      })
-      ipcMain.handle('qp:resize-end', () => {
-        resizeState = null
-        queueSave()
-      })
-    }
     ipcMain.handle('qp:pin', () => {
       pinned = !pinned
       if (mainWindow && !mainWindow.isDestroyed() && mode === 'panel') {

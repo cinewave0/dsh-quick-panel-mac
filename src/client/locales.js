@@ -152,7 +152,7 @@
       deleteReminder: 'Delete reminder',
       today: 'Today',
       tomorrow: 'Tomorrow',
-      notifyReminderTitle: 'Quick Panel · Reminder',
+      notifyReminderTitle: 'Quick panel · Reminder',
       turnDone: 'Turn finished',
       turnDoneBody: 'Took {time}',
       invalidTime: 'Pick a future time',

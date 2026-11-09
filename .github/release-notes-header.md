@@ -8,7 +8,7 @@
 https://cinewave0.github.io/dsh-quick-panel-mac/market/index.json
 ```
 
-然后搜索 **Quick Panel** 安装。索引固定到某个 commit，装完即用。
+然后搜索 **Quick Panel** 安装。索引固定到某个 commit；装完刷新 DSH 页面，第一次点“打开独立面板”会自动下载并安装 Electron（约 120 MB），不需要 dsh-pet 或手工解压。
 
 **方式二：本页的 Release 包**
 
@@ -37,9 +37,9 @@ dsh plugin --profile desktop add "git+https://github.com/cinewave0/dsh-quick-pan
 |---|---|
 | DSH | `>=0.2.2-rc.1 <0.3.0` |
 | Windows | 10/11；独立窗需要 `%USERPROFILE%\.dsh\electron\electron.exe` |
-| macOS | 12+；独立窗需要 `~/.dsh/electron/Electron.app`（dsh-pet 会下载，也可用 `scripts/ensure-electron.mjs`） |
+| macOS | 12+；首次打开自动下载/校验 Electron 43.3.0 到 `~/.dsh/electron`，也可手动放置或设置 `DSH_QUICK_PANEL_ELECTRON` |
 
-路径缺失时打开独立窗会报 `electron-missing`；也可以用 `DSH_QUICK_PANEL_ELECTRON` 指向别处的 Electron。
+下载源优先 npmmirror、失败回退 GitHub Releases，zip 的 SHA-256 固定在校验表里。离线环境可设 `DSH_QUICK_PANEL_NO_RUNTIME_DOWNLOAD=1` 后手动安装，或设 `DSH_QUICK_PANEL_ELECTRON` 指向已有 Electron。
 
 > 本项目**不发布 npm**，只有上面三个渠道。装完或升级后请刷新一次 DSH 页面（Host 半区改动需要重启 DSH）。
 

@@ -302,6 +302,17 @@ function windowFailureText(t, result) {
               ),
             ),
           ),
+          !state.hostReady
+            ? h(
+                'div',
+                { className: 'qp-restart-banner', role: 'alert' },
+                h('div', { className: 'qp-restart-title' }, t('restartTitle')),
+                h('div', { className: 'qp-restart-body' }, t('restartBody')),
+                h('div', { className: 'qp-restart-shortcut' }, t('restartShortcut')),
+                h('div', { className: 'qp-restart-after' }, t('restartAfter')),
+                h('div', { className: 'qp-restart-log' }, t('restartLog')),
+              )
+            : null,
           due
             ? h(
                 'div',

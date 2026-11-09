@@ -5,8 +5,8 @@
     "zh": "快捷面板"
   },
   "description": {
-    "en": "Standalone quick panel for DSH: todos, reminders, live session view and quick input.",
-    "zh": "DSH 快捷面板（macOS 版）：待办、提醒、实时消息和快速输入。"
+    "en": "Standalone quick panel for DSH: todos, reminders, live session view and quick input. After installing, press ⌘Q (Command + Q) to quit DSH completely and reopen it; a refresh is not enough.",
+    "zh": "DSH 快捷面板（macOS 版）：待办、提醒、实时消息和快速输入。安装后请按 ⌘Q（Command + Q）完全退出 DSH 并重新打开；仅刷新页面不够。"
   },
   "plugins": [
     {
@@ -16,8 +16,8 @@
         "zh": "快捷面板"
       },
       "description": {
-        "en": "A standalone DSH companion window with todos, reminders, live messages, approvals and quick input.",
-        "zh": "macOS 上的 DSH 独立伴生窗：待办、提醒、实时消息、审批和快速输入。"
+        "en": "A standalone DSH companion window with todos, reminders, live messages, approvals and quick input. After installing, press ⌘Q (Command + Q) to quit DSH completely and reopen it; a refresh is not enough.",
+        "zh": "macOS 上的 DSH 独立伴生窗：待办、提醒、实时消息、审批和快速输入。安装后请按 ⌘Q（Command + Q）完全退出 DSH 并重新打开；仅刷新页面不够。"
       },
       "author": "cinewave0",
       "homepage": "https://github.com/cinewave0/dsh-quick-panel-mac",

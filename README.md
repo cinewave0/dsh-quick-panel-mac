@@ -1,6 +1,6 @@
 # 快捷面板 · macOS / Quick Panel for macOS
 
-> 当前版本：1.0.4-beta.5（预发布）
+> 当前版本：1.0.4-beta.6（预发布）
 
 [![CI](https://github.com/cinewave0/dsh-quick-panel-mac/actions/workflows/ci.yml/badge.svg)](https://github.com/cinewave0/dsh-quick-panel-mac/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/cinewave0/dsh-quick-panel-mac)](https://github.com/cinewave0/dsh-quick-panel-mac/releases)
@@ -17,6 +17,8 @@ DSH Desktop 的快捷面板插件，**macOS 版**：在 DSH 窗口内提供一�
 
 - **DSH 内**：侧边栏入口 → 顶部浮岛 → 下拖面板；待办、提醒、实时消息、快速输入。
 - **独立小应用**：默认顶部浮岛（360×48，置顶、不占 Dock），点开为 440 宽面板；菜单栏图标常驻；关闭面板只收起为浮岛。
+
+> **安装或更新后必须重启 DSH：⌘Q（Command + Q）完全退出，确认 Dock 图标消失，再重新打开。只关闭窗口或刷新页面不会加载插件的页面部分。** 首次安装时 DSH 页面里的插件入口还没加载，看到“Host 未连接”不是插件坏了；按 ⌘Q 退出重开即可。Electron 运行时会在第一次打开时自动安装，不需要额外下载。
 
 ## 环境要求
 
@@ -59,13 +61,13 @@ DSH Desktop 的快捷面板插件，**macOS 版**：在 DSH 窗口内提供一�
 https://cinewave0.github.io/dsh-quick-panel-mac/market/index.json
 ```
 
-然后搜索 **Quick Panel** 安装。装完刷新 DSH 页面，第一次点“打开独立面板”会自动下载并安装 Electron（约 120 MB），不需要 dsh-pet 或手工解压。索引固定到某个 commit；该 commit 的 `package.json` 版本必须与索引的 `version` 一致（`npm run check:market` 会校验，release workflow 也会跑）。
+然后搜索 **Quick Panel** 安装。**装完必须按 ⌘Q（Command + Q）完全退出 DSH，确认 Dock 图标消失后重新打开**；只刷新页面不够。重新打开后第一次点“打开独立面板”会自动下载并安装 Electron（约 120 MB），不需要 dsh-pet 或手工解压。索引固定到某个 commit；该 commit 的 `package.json` 版本必须与索引的 `version` 一致（`npm run check:market` 会校验，release workflow 也会跑）。
 
 > 索引当前指向预发布版。想留在稳定版，用下面的 Release 包安装 `v1.0.3`。
 
 ### 方式二：Release 包
 
-从 [Releases](https://github.com/cinewave0/dsh-quick-panel-mac/releases) 下载 `dsh-quick-panel-mac-1.0.4-beta.5.tgz`，先用 `SHA256SUMS` 校验：
+从 [Releases](https://github.com/cinewave0/dsh-quick-panel-mac/releases) 下载 `dsh-quick-panel-mac-1.0.4-beta.6.tgz`，先用 `SHA256SUMS` 校验：
 
 ```sh
 shasum -a 256 -c SHA256SUMS          # macOS / Linux
@@ -75,7 +77,7 @@ certutil -hashfile <tgz> SHA256      # Windows，与 SHA256SUMS 里的值比对
 然后在 DSH 插件页的安装入口填 tgz 的**绝对路径**；装了 `dsh` CLI 的环境也可以直接用命令行：
 
 ```sh
-dsh plugin --profile desktop add /绝对路径/dsh-quick-panel-mac-1.0.4-beta.5.tgz
+dsh plugin --profile desktop add /绝对路径/dsh-quick-panel-mac-1.0.4-beta.6.tgz
 ```
 
 > 桌面版 App 不一定把 `dsh` 命令装进 `PATH`，没有 CLI 时用插件页安装即可。
@@ -142,7 +144,8 @@ macOS 上是同一套面板（浮岛 / 面板 / 托盘 / Dock 隐藏 / 底部拖
 
 **打不开独立面板**
 
-- 提示「Host 未连接」：Host 半区未加载，重启 DSH；也可能是页面在安装插件之前就打开了，刷新一次 DSH 页面。
+- 刚安装/更新后提示「Host 未连接」：DSH 页面还在运行旧版本。按 **⌘Q（Command + Q）** 完全退出 DSH，确认 Dock 图标消失后重新打开；只关闭窗口或刷新页面（Cmd+R / Cmd+Shift+R）不够。
+- 已经按 ⌘Q 重启后仍提示「Host 未连接」：确认 Dock 图标真的消失过；再看 `~/.dsh/quick-panel/helper.log`，或重启 DSH 后重新打开插件页。
 - 首次打开显示“正在下载 Electron 运行时”：这是正常的一次性安装（约 120 MB），进度会显示在面板上；下载完成后会自动开窗。失败后再点一次会重试，详情看 `~/.dsh/quick-panel/helper.log`。
 - 提示启动失败 / 未就绪：看 `~/.dsh/quick-panel/helper.log`。常见原因是下载源不可达、路径不可执行、或 DSH 的地址不是本机回环地址。
 - 独立窗启动后立即消失：`helper.log` 里会有 spawn/exit 记录；Electron 自己的 stderr（沙箱、`did-fail-load`）也会写进同一文件。
@@ -204,6 +207,7 @@ node test/platform.test.mjs                      # 平台规则（托盘/Dock/�
 node test/panel.test.mjs                         # Electron 面板 DOM 集成测试（需 $DSH_HOME/electron）
 node test/helper.test.mjs                        # 真实 Electron helper 启动/首次 ping 冒烟测试（需 Electron）
 node test/runtime-install.test.mjs               # 首次打开时 Electron 下载/校验/解压/安装
+node test/restart-prompt.test.mjs                # 安装后的重启提示（⌘Q、仅刷新不够）
 npm run lint                                     # oxlint（0 warning 门槛）
 npm run check:market                             # Discover 索引 version 与 commit 的 package.json 一致
 node scripts/backup.mjs                          # 备份到 ../backups（zip + sha256 + manifest）

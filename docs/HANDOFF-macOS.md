@@ -138,7 +138,8 @@ env -u ELECTRON_RUN_AS_NODE node test/panel.test.mjs
 - 首次打开自动下载/校验/解压 Electron 43.3.0 到 `~/.dsh/electron`（npmmirror 优先、GitHub 回退，SHA-256 固定），不再依赖 dsh-pet 或手工安装；
 - Host：`resolveElectron()` 预检（存在性/可执行位/是否文件）、`electron-missing`/`electron-unusable` 写 `helper.log`、spawn 后等待首次 `companion-ping` 再返回成功、已有窗口时用第二实例 raise、Host 侧回环 origin 预检、Electron stderr 写入 `helper.log`、日志轮转；
 - Helper：`localhost`/`[::1]`/HTTPS 白名单、`did-fail-load`/`loadURL` 失败退出、最小化恢复、`leftClickOpensMenu`/`framelessEdgeResizable` 标记真正接进窗口；
-- 客户端：按 Host 错误码显示具体文案，重新生成 `client.js`；
+- 客户端：按 Host 错误码显示具体文案；Host 未连接时面板顶部常驻“插件已安装，需要重启 DSH”提示，明确写 **⌘Q（Command + Q）** 完全退出、确认 Dock 图标消失、只刷新不够；重新生成 `client.js`；
+- 安装/更新提示：README、Discover 描述、release notes 都写“必须 ⌘Q 完全退出 DSH 后重开”；首次安装时 client 还没加载，这是唯一能覆盖首次安装的提示位置；
 - 发布：`market/index.json` 改指向 `e6f1d4a`（beta.4 的 release commit），新增 `scripts/check-market-index.mjs`，CI/release 校验索引 commit 的 `package.json` 版本；
 - 测试：Host 14 项、platform 4 项、真实 helper 启动 smoke、面板 DOM 测试；CI macOS 安装 Electron 后跑 helper smoke。
 

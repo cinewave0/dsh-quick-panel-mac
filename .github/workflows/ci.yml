@@ -71,6 +71,9 @@ jobs:
       - name: Runtime provisioning
         run: node test/runtime-install.test.mjs
 
+      - name: Restart prompt
+        run: node test/restart-prompt.test.mjs
+
       - name: Cache Electron for the helper smoke test
         if: runner.os == 'macOS'
         uses: actions/cache@v4

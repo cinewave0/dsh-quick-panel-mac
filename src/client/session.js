@@ -16,6 +16,7 @@ import { pad2, userImageRefs, hostLiveRow, hostLivePartial } from './text.js'
         canPrompt: false,
         canCancel: false,
         companionOpen: false,
+        hostReady: false,
         usage: null,
       }),
       inputActions: null,
@@ -381,6 +382,7 @@ import { pad2, userImageRefs, hostLiveRow, hostLivePartial } from './text.js'
       },
 
       async init() {
+        store.patch({ hostReady: false })
         try {
           const injected = window.__QUICK_PANEL_CONFIG__
           if (injected && typeof injected.token === 'string' && injected.token) {
@@ -409,7 +411,7 @@ import { pad2, userImageRefs, hostLiveRow, hostLivePartial } from './text.js'
           this.applying = false
           this.rev = Number.isFinite(state.rev) ? state.rev : 0
           this.ready = true
-          store.patch({ companionOpen: Boolean(state.companionOpen) })
+          store.patch({ companionOpen: Boolean(state.companionOpen), hostReady: true })
           if (!hasHostData && hasLocalData) await this.push()
           this.setSession(store.state.sessionId)
           this.unsubscribeLive = store.subscribe(() => this.scheduleLive())
@@ -422,6 +424,7 @@ import { pad2, userImageRefs, hostLiveRow, hostLivePartial } from './text.js'
           document.addEventListener('visibilitychange', this.visibilityHandler)
           this.pollTimer = window.setInterval(() => this.poll(), 2500)
         } catch (_error) {
+          store.patch({ hostReady: false })
           /* the Host bridge is optional; localStorage remains the fallback */
         }
       },
@@ -692,7 +695,11 @@ import { pad2, userImageRefs, hostLiveRow, hostLivePartial } from './text.js'
       async poll() {
         if (!this.ready || this.applying) return
         const state = await this.readState()
-        if (!state) return
+        if (!state) {
+          if (store.state.hostReady) store.patch({ hostReady: false })
+          return
+        }
+        if (!store.state.hostReady) store.patch({ hostReady: true })
         if (typeof state.companionOpen === 'boolean') {
           const wasOpen = store.state.companionOpen
           store.patch({ companionOpen: state.companionOpen })
@@ -788,6 +795,7 @@ import { pad2, userImageRefs, hostLiveRow, hostLivePartial } from './text.js'
         this.unsubscribeLive = null
         this.unsubscribeQuestions = null
         this.ready = false
+        store.patch({ hostReady: false })
       },
     }
 

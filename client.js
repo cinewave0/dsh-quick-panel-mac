@@ -139,7 +139,12 @@ window.__ModuleLoader__.load({
           openWindow: "打开独立面板",
           windowOpened: "独立面板已打开",
           windowFailed: "打不开独立面板",
-          windowFailedHost: "打不开独立面板（Host 未连接）",
+          windowFailedHost: "Host 未连接：请 ⌘Q（Command + Q）完全退出 DSH 后重开；仅刷新不够。",
+          restartTitle: "插件已安装，需要重启 DSH",
+          restartBody: "DSH 页面还在运行旧版本，所以显示“Host 未连接”。请完全退出 DSH，而不是只关闭窗口或刷新页面。",
+          restartShortcut: "⌘Q（Command + Q）",
+          restartAfter: "确认 Dock 里的 DSH 图标消失后，重新打开 DSH，再点“打开独立面板”。Electron 运行时已经装好，不会重新下载。",
+          restartLog: "重启后仍提示 Host 未连接，请查看 ~/.dsh/quick-panel/helper.log。",
           windowFailedElectron: "独立面板需要 Electron：请安装到 ~/.dsh/electron 或设置 DSH_QUICK_PANEL_ELECTRON",
           windowFailedOrigin: "当前 DSH 地址不受支持（仅支持本机 127.0.0.1 / localhost）",
           windowFailedSpawn: "Electron 启动失败，请查看 ~/.dsh/quick-panel/helper.log",
@@ -247,7 +252,12 @@ window.__ModuleLoader__.load({
           openWindow: "Open standalone panel",
           windowOpened: "Standalone panel opened",
           windowFailed: "Could not open the standalone panel",
-          windowFailedHost: "Could not open the standalone panel (Host offline)",
+          windowFailedHost: "Host offline: press ⌘Q (Command + Q) to quit DSH completely, then reopen; a refresh is not enough.",
+          restartTitle: "Plugin installed — restart DSH",
+          restartBody: "This DSH page is still running the old version, so it shows “Host offline”. Quit DSH completely; closing the window or refreshing the page is not enough.",
+          restartShortcut: "⌘Q (Command + Q)",
+          restartAfter: "Wait until the DSH icon disappears from the Dock, reopen DSH, then click “Open standalone panel” again. The Electron runtime is already installed and will not download again.",
+          restartLog: "If “Host offline” persists after the restart, check ~/.dsh/quick-panel/helper.log.",
           windowFailedElectron: "The standalone panel needs Electron: install it under ~/.dsh/electron or set DSH_QUICK_PANEL_ELECTRON",
           windowFailedOrigin: "This DSH address is not supported (loopback 127.0.0.1 / localhost only)",
           windowFailedSpawn: "Electron failed to start; see ~/.dsh/quick-panel/helper.log",
@@ -566,6 +576,7 @@ window.__ModuleLoader__.load({
             canPrompt: false,
             canCancel: false,
             companionOpen: false,
+            hostReady: false,
             usage: null
           }),
           inputActions: null,
@@ -890,6 +901,7 @@ window.__ModuleLoader__.load({
             this.switcher = typeof switcher === "function" ? switcher : null;
           },
           async init() {
+            store.patch({ hostReady: false });
             try {
               const injected = window.__QUICK_PANEL_CONFIG__;
               if (injected && typeof injected.token === "string" && injected.token) {
@@ -918,7 +930,7 @@ window.__ModuleLoader__.load({
               this.applying = false;
               this.rev = Number.isFinite(state.rev) ? state.rev : 0;
               this.ready = true;
-              store.patch({ companionOpen: Boolean(state.companionOpen) });
+              store.patch({ companionOpen: Boolean(state.companionOpen), hostReady: true });
               if (!hasHostData && hasLocalData) await this.push();
               this.setSession(store.state.sessionId);
               this.unsubscribeLive = store.subscribe(() => this.scheduleLive());
@@ -931,6 +943,7 @@ window.__ModuleLoader__.load({
               document.addEventListener("visibilitychange", this.visibilityHandler);
               this.pollTimer = window.setInterval(() => this.poll(), 2500);
             } catch (_error) {
+              store.patch({ hostReady: false });
             }
           },
           async readState() {
@@ -1159,7 +1172,11 @@ window.__ModuleLoader__.load({
           async poll() {
             if (!this.ready || this.applying) return;
             const state = await this.readState();
-            if (!state) return;
+            if (!state) {
+              if (store.state.hostReady) store.patch({ hostReady: false });
+              return;
+            }
+            if (!store.state.hostReady) store.patch({ hostReady: true });
             if (typeof state.companionOpen === "boolean") {
               const wasOpen = store.state.companionOpen;
               store.patch({ companionOpen: state.companionOpen });
@@ -1252,6 +1269,7 @@ window.__ModuleLoader__.load({
             this.unsubscribeLive = null;
             this.unsubscribeQuestions = null;
             this.ready = false;
+            store.patch({ hostReady: false });
           }
         };
 
@@ -1544,6 +1562,10 @@ window.__ModuleLoader__.load({
       .qp-side-btn{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;padding:0;border:0;border-radius:8px;background:transparent;color:var(--dsw-alias-label-secondary,#98a2b3);font:inherit;font-size:12px;cursor:pointer;position:relative;flex:none}
       .qp-side-btn:hover{background:var(--dsw-alias-bg-layer-2,#22262e);color:var(--dsw-alias-label-primary,#e9ecf1)}
       .qp-side-dot{position:absolute;top:4px;right:5px;width:6px;height:6px;border-radius:50%;background:var(--dsw-alias-state-success-primary,#3ddc97);box-shadow:0 0 0 2px var(--dsw-alias-bg-base,#14161a)}
+      .qp-restart-banner{flex:none;margin:0 14px 8px;padding:9px 10px;border-radius:10px;border:1px solid rgb(246 200 90 / .35);background:rgb(246 200 90 / .10);color:var(--dsw-alias-label-primary,#e9ecf1);font-size:10.5px;line-height:1.45;display:flex;flex-direction:column;gap:3px;word-break:break-word}
+      .qp-restart-title{font-size:11.5px;font-weight:600;color:#f2d58a}
+      .qp-restart-shortcut{font-size:12px;font-weight:700;color:#f2d58a}
+      .qp-restart-log{font-size:9.5px;color:var(--dsw-alias-label-secondary,#98a2b3)}
       @media (hover:none){.qp-todo-actions{opacity:1}}
       @media (max-width:520px){.qp-panel{max-width:calc(100vw - 16px)}}
       @media (prefers-reduced-motion:reduce){.qp-dot.is-live,.qp-caret,.qp-feed-dot,.qp-wheel-current,.qp-due-card{animation:none}.qp-panel,.qp-island,.qp-flash{animation:none;transition:none}}
@@ -2933,6 +2955,15 @@ window.__ModuleLoader__.load({
                   )
                 )
               ),
+              !state.hostReady ? h(
+                "div",
+                { className: "qp-restart-banner", role: "alert" },
+                h("div", { className: "qp-restart-title" }, t("restartTitle")),
+                h("div", { className: "qp-restart-body" }, t("restartBody")),
+                h("div", { className: "qp-restart-shortcut" }, t("restartShortcut")),
+                h("div", { className: "qp-restart-after" }, t("restartAfter")),
+                h("div", { className: "qp-restart-log" }, t("restartLog"))
+              ) : null,
               due ? h(
                 "div",
                 { className: "qp-due-banner" },

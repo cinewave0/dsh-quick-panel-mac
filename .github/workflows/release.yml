@@ -54,6 +54,7 @@ jobs:
           node test/dsh-adapter.test.mjs
           node test/host.test.mjs
           node test/runtime-install.test.mjs
+          node test/restart-prompt.test.mjs
 
       - name: Pack
         run: |

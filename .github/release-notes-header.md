@@ -1,3 +1,5 @@
+> **安装或更新后必须重启 DSH：⌘Q（Command + Q）完全退出，确认 Dock 图标消失，再重新打开。只关闭窗口或刷新页面（Cmd+R / Cmd+Shift+R）不够。** 首次安装时 DSH 页面里的插件入口还没加载，看到“Host 未连接”不是插件坏了；按 ⌘Q 退出重开即可。
+
 ## 安装
 
 **方式一：DSH 插件页（推荐）**
@@ -8,7 +10,7 @@
 https://cinewave0.github.io/dsh-quick-panel-mac/market/index.json
 ```
 
-然后搜索 **Quick Panel** 安装。索引固定到某个 commit；装完刷新 DSH 页面，第一次点“打开独立面板”会自动下载并安装 Electron（约 120 MB），不需要 dsh-pet 或手工解压。
+然后搜索 **Quick Panel** 安装。**装完必须按 ⌘Q（Command + Q）完全退出 DSH，确认 Dock 图标消失后重新打开**；只刷新页面不够。重新打开后第一次点“打开独立面板”会自动下载并安装 Electron（约 120 MB），不需要 dsh-pet 或手工解压。
 
 **方式二：本页的 Release 包**
 

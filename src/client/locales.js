@@ -92,7 +92,14 @@
       openWindow: '打开独立面板',
       windowOpened: '独立面板已打开',
       windowFailed: '打不开独立面板',
-      windowFailedHost: '打不开独立面板（Host 未连接）',
+      windowFailedHost: 'Host 未连接：请 ⌘Q（Command + Q）完全退出 DSH 后重开；仅刷新不够。',
+      restartTitle: '插件已安装，需要重启 DSH',
+      restartBody:
+        'DSH 页面还在运行旧版本，所以显示“Host 未连接”。请完全退出 DSH，而不是只关闭窗口或刷新页面。',
+      restartShortcut: '⌘Q（Command + Q）',
+      restartAfter:
+        '确认 Dock 里的 DSH 图标消失后，重新打开 DSH，再点“打开独立面板”。Electron 运行时已经装好，不会重新下载。',
+      restartLog: '重启后仍提示 Host 未连接，请查看 ~/.dsh/quick-panel/helper.log。',
       windowFailedElectron:
         '独立面板需要 Electron：请安装到 ~/.dsh/electron 或设置 DSH_QUICK_PANEL_ELECTRON',
       windowFailedOrigin: '当前 DSH 地址不受支持（仅支持本机 127.0.0.1 / localhost）',
@@ -202,7 +209,15 @@
       openWindow: 'Open standalone panel',
       windowOpened: 'Standalone panel opened',
       windowFailed: 'Could not open the standalone panel',
-      windowFailedHost: 'Could not open the standalone panel (Host offline)',
+      windowFailedHost:
+        'Host offline: press ⌘Q (Command + Q) to quit DSH completely, then reopen; a refresh is not enough.',
+      restartTitle: 'Plugin installed — restart DSH',
+      restartBody:
+        'This DSH page is still running the old version, so it shows “Host offline”. Quit DSH completely; closing the window or refreshing the page is not enough.',
+      restartShortcut: '⌘Q (Command + Q)',
+      restartAfter:
+        'Wait until the DSH icon disappears from the Dock, reopen DSH, then click “Open standalone panel” again. The Electron runtime is already installed and will not download again.',
+      restartLog: 'If “Host offline” persists after the restart, check ~/.dsh/quick-panel/helper.log.',
       windowFailedElectron:
         'The standalone panel needs Electron: install it under ~/.dsh/electron or set DSH_QUICK_PANEL_ELECTRON',
       windowFailedOrigin: 'This DSH address is not supported (loopback 127.0.0.1 / localhost only)',

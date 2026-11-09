@@ -1,6 +1,6 @@
 # 快捷面板 · macOS / Quick Panel for macOS
 
-> 当前版本：1.0.4-beta.6（预发布）
+> 当前版本：1.0.4（正式版）
 
 [![CI](https://github.com/cinewave0/dsh-quick-panel-mac/actions/workflows/ci.yml/badge.svg)](https://github.com/cinewave0/dsh-quick-panel-mac/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/cinewave0/dsh-quick-panel-mac)](https://github.com/cinewave0/dsh-quick-panel-mac/releases)
@@ -63,11 +63,11 @@ https://cinewave0.github.io/dsh-quick-panel-mac/market/index.json
 
 然后搜索 **Quick Panel** 安装。**装完必须按 ⌘Q（Command + Q）完全退出 DSH，确认 Dock 图标消失后重新打开**；只刷新页面不够。重新打开后第一次点“打开独立面板”会自动下载并安装 Electron（约 120 MB），不需要 dsh-pet 或手工解压。索引固定到某个 commit；该 commit 的 `package.json` 版本必须与索引的 `version` 一致（`npm run check:market` 会校验，release workflow 也会跑）。
 
-> 索引当前指向预发布版。想留在稳定版，用下面的 Release 包安装 `v1.0.3`。
+> 索引默认安装 **1.0.4 正式版**；预发布 `1.0.4-beta.6` 仍保留在索引里，想固定在旧稳定版可用 Release 包安装 `v1.0.3`。
 
 ### 方式二：Release 包
 
-从 [Releases](https://github.com/cinewave0/dsh-quick-panel-mac/releases) 下载 `dsh-quick-panel-mac-1.0.4-beta.6.tgz`，先用 `SHA256SUMS` 校验：
+从 [Releases](https://github.com/cinewave0/dsh-quick-panel-mac/releases) 下载 `dsh-quick-panel-mac-1.0.4.tgz`，先用 `SHA256SUMS` 校验：
 
 ```sh
 shasum -a 256 -c SHA256SUMS          # macOS / Linux
@@ -77,7 +77,7 @@ certutil -hashfile <tgz> SHA256      # Windows，与 SHA256SUMS 里的值比对
 然后在 DSH 插件页的安装入口填 tgz 的**绝对路径**；装了 `dsh` CLI 的环境也可以直接用命令行：
 
 ```sh
-dsh plugin --profile desktop add /绝对路径/dsh-quick-panel-mac-1.0.4-beta.6.tgz
+dsh plugin --profile desktop add /绝对路径/dsh-quick-panel-mac-1.0.4.tgz
 ```
 
 > 桌面版 App 不一定把 `dsh` 命令装进 `PATH`，没有 CLI 时用插件页安装即可。

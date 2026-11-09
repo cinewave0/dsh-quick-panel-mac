@@ -125,7 +125,12 @@ function islandTarget(workArea) {
   }
 }
 
-function clampBounds(bounds) {
+/** How much of the window must stay on some display before macOS lets it go anywhere. */
+const KEEP_VISIBLE_WIDTH = 120
+const KEEP_VISIBLE_HEIGHT = 48
+
+/** Snap the window back into one display's work area. Used off macOS, and as the last resort there. */
+function clampToWorkArea(bounds) {
   const display = screen.getDisplayMatching(bounds)
   const area = display.workArea
   const width = mode === 'island' ? ISLAND_WIDTH : PANEL_WIDTH
@@ -135,6 +140,33 @@ function clampBounds(bounds) {
   const x = Math.min(Math.max(bounds.x, area.x), area.x + area.width - width)
   const y = Math.min(Math.max(bounds.y, area.y), area.y + area.height - height)
   return { x, y, width, height }
+}
+
+/**
+ * macOS: any display, any position. A window may hang over an edge or sit partly
+ * under the menu bar; the only rule is that enough of it stays on some display
+ * to be grabbed again, so it cannot be dragged out of reach.
+ */
+function clampReachable(bounds) {
+  const width = mode === 'island' ? ISLAND_WIDTH : PANEL_WIDTH
+  const minHeight = mode === 'island' ? ISLAND_HEIGHT : PANEL_MIN_HEIGHT
+  const maxHeight = mode === 'island' ? ISLAND_HEIGHT : Math.max(PANEL_MIN_HEIGHT, bounds.height)
+  const height = Math.min(Math.max(bounds.height, minHeight), maxHeight)
+  const keptWidth = Math.min(KEEP_VISIBLE_WIDTH, width)
+  const keptHeight = Math.min(KEEP_VISIBLE_HEIGHT, height)
+  const reachable = screen.getAllDisplays().some((display) => {
+    const area = display.bounds
+    const overlapX =
+      Math.min(bounds.x + width, area.x + area.width) - Math.max(bounds.x, area.x)
+    const overlapY =
+      Math.min(bounds.y + height, area.y + area.height) - Math.max(bounds.y, area.y)
+    return overlapX >= keptWidth && overlapY >= keptHeight
+  })
+  return reachable ? { x: bounds.x, y: bounds.y, width, height } : clampToWorkArea(bounds)
+}
+
+function clampBounds(bounds) {
+  return PLATFORM.mac ? clampReachable(bounds) : clampToWorkArea(bounds)
 }
 
 function saveCurrent() {

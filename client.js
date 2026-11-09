@@ -138,7 +138,16 @@ window.__ModuleLoader__.load({
           jumpLatest: "最新 ↓",
           openWindow: "打开独立面板",
           windowOpened: "独立面板已打开",
-          windowFailed: "打不开独立面板（Host 未连接）",
+          windowFailed: "打不开独立面板",
+          windowFailedHost: "打不开独立面板（Host 未连接）",
+          windowFailedElectron: "独立面板需要 Electron：请安装到 ~/.dsh/electron 或设置 DSH_QUICK_PANEL_ELECTRON",
+          windowFailedOrigin: "当前 DSH 地址不受支持（仅支持本机 127.0.0.1 / localhost）",
+          windowFailedSpawn: "Electron 启动失败，请查看 ~/.dsh/quick-panel/helper.log",
+          windowFailedTimeout: "Electron 已启动但面板未就绪，请查看 ~/.dsh/quick-panel/helper.log",
+          runtimeInstalling: "首次使用，正在下载 Electron 运行时（约 100 MB）",
+          runtimeInstallFailed: "Electron 运行时安装失败，请再点一次重试；详情见 helper.log",
+          runtimeInstallTimeout: "等待 Electron 运行时超时，请查看 helper.log",
+          runtimeUnavailable: "当前平台不支持自动安装 Electron",
           disabledInput: "M4 将在此快速输入…",
           version: "v0.1.0 · M6",
           esc: "Esc 收起",
@@ -237,7 +246,16 @@ window.__ModuleLoader__.load({
           jumpLatest: "Latest ↓",
           openWindow: "Open standalone panel",
           windowOpened: "Standalone panel opened",
-          windowFailed: "Could not open the standalone panel (Host offline)",
+          windowFailed: "Could not open the standalone panel",
+          windowFailedHost: "Could not open the standalone panel (Host offline)",
+          windowFailedElectron: "The standalone panel needs Electron: install it under ~/.dsh/electron or set DSH_QUICK_PANEL_ELECTRON",
+          windowFailedOrigin: "This DSH address is not supported (loopback 127.0.0.1 / localhost only)",
+          windowFailedSpawn: "Electron failed to start; see ~/.dsh/quick-panel/helper.log",
+          windowFailedTimeout: "Electron started but the panel did not become ready; see helper.log",
+          runtimeInstalling: "First run: downloading the Electron runtime (about 100 MB)",
+          runtimeInstallFailed: "Electron runtime install failed; click again to retry or see helper.log",
+          runtimeInstallTimeout: "Timed out waiting for the Electron runtime; see helper.log",
+          runtimeUnavailable: "Automatic Electron install is not supported on this platform",
           disabledInput: "Quick input arrives in M4…",
           version: "v0.1.0 · M6",
           esc: "Esc to collapse",
@@ -1175,6 +1193,19 @@ window.__ModuleLoader__.load({
               }).catch(() => {
               });
             }, 200);
+          },
+          async runtimeStatus() {
+            if (!this.token) return null;
+            try {
+              const response = await fetch(
+                `${HOST_ROUTE}/runtime?token=${encodeURIComponent(this.token)}`,
+                { cache: "no-store" }
+              );
+              if (!response.ok) return null;
+              return await response.json();
+            } catch (_error) {
+              return null;
+            }
           },
           async openWindow() {
             if (!this.token) return { ok: false, error: "host-unavailable" };
@@ -2633,6 +2664,21 @@ window.__ModuleLoader__.load({
         }
 
         // src/client/panel.js
+        function windowFailureText(t, result) {
+          const code = result && result.error;
+          if (code === "electron-missing" || code === "electron-unusable") return t("windowFailedElectron");
+          if (code === "electron-installing") return t("runtimeInstalling");
+          if (code === "electron-install-failed") return t("runtimeInstallFailed");
+          if (code === "electron-install-timeout") return t("runtimeInstallTimeout");
+          if (code === "runtime-unavailable") return t("runtimeUnavailable");
+          if (code === "unsupported-origin") return t("windowFailedOrigin");
+          if (code === "spawn-failed") return t("windowFailedSpawn");
+          if (code === "companion-timeout") return t("windowFailedTimeout");
+          if (code === "host-unavailable" || code === "origin-unavailable" || code === "request-failed") {
+            return t("windowFailedHost");
+          }
+          return t("windowFailed");
+        }
         function Panel({ t, now, state, anchor, width, maxHeight, onDragStart, due, onSnooze, onComplete, schedule, openSchedule, loadOlder, sendPrompt, stopTurn }) {
           const clock = clockOf(now);
           const connected = Boolean(state.sessionId);
@@ -2653,6 +2699,34 @@ window.__ModuleLoader__.load({
             setFlash(text);
             window.clearTimeout(flashTimer.current);
             flashTimer.current = window.setTimeout(() => setFlash(null), 2600);
+          };
+          const openStandalone = async () => {
+            let result = await hostSync.openWindow();
+            if (result && result.error === "electron-installing") {
+              let runtime = result.runtime || await hostSync.runtimeStatus();
+              for (let attempt = 0; attempt < 1200; attempt += 1) {
+                const percent = runtime && Number.isFinite(runtime.percent) ? runtime.percent : 0;
+                showFlash(percent > 0 ? `${t("runtimeInstalling")} ${percent}%` : t("runtimeInstalling"));
+                await new Promise((resolve) => window.setTimeout(resolve, 1500));
+                runtime = await hostSync.runtimeStatus();
+                if (!runtime) {
+                  result = { ok: false, error: "host-unavailable" };
+                  break;
+                }
+                if (runtime.status === "ready") {
+                  result = await hostSync.openWindow();
+                  break;
+                }
+                if (runtime.status === "failed") {
+                  result = { ok: false, error: "electron-install-failed", detail: runtime.error };
+                  break;
+                }
+              }
+              if (result && result.error === "electron-installing") {
+                result = { ok: false, error: "electron-install-timeout" };
+              }
+            }
+            showFlash(result && result.ok ? t("windowOpened") : windowFailureText(t, result));
           };
           const handoff = (todo) => {
             if (todo.handedOff) {
@@ -2822,11 +2896,7 @@ window.__ModuleLoader__.load({
                       {
                         type: "button",
                         className: "qp-iconbtn",
-                        onClick: () => {
-                          hostSync.openWindow().then((result) => {
-                            showFlash(result && result.ok ? t("windowOpened") : t("windowFailed"));
-                          });
-                        },
+                        onClick: openStandalone,
                         title: t("openWindow"),
                         "aria-label": t("openWindow")
                       },
@@ -2945,11 +3015,7 @@ window.__ModuleLoader__.load({
                   {
                     type: "button",
                     className: "qp-window-row",
-                    onClick: () => {
-                      hostSync.openWindow().then((result) => {
-                        showFlash(result && result.ok ? t("windowOpened") : t("windowFailed"));
-                      });
-                    }
+                    onClick: openStandalone
                   },
                   h(IconWindow, { size: 13 }),
                   h("span", null, t("openWindow"))

@@ -728,6 +728,20 @@ import { pad2, userImageRefs, hostLiveRow, hostLivePartial } from './text.js'
         }, 200)
       },
 
+      async runtimeStatus() {
+        if (!this.token) return null
+        try {
+          const response = await fetch(
+            `${HOST_ROUTE}/runtime?token=${encodeURIComponent(this.token)}`,
+            { cache: 'no-store' },
+          )
+          if (!response.ok) return null
+          return await response.json()
+        } catch (_error) {
+          return null
+        }
+      },
+
       async openWindow() {
         if (!this.token) return { ok: false, error: 'host-unavailable' }
         try {

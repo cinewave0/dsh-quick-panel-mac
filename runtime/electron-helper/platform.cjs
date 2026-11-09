@@ -52,4 +52,15 @@ function companionPlatform(platform) {
   }
 }
 
-module.exports = { companionPlatform }
+/**
+ * The companion only ever loads a loopback panel page. Keep this decision here
+ * so the Host-side fence and the window's navigation fence cannot drift.
+ * @param {string} value
+ */
+const LOCAL_PANEL_URL = /^https?:\/\/(?:127\.0\.0\.1|localhost|\[::1\]):\d+\//
+
+function isLocalPanelUrl(value) {
+  return typeof value === 'string' && LOCAL_PANEL_URL.test(value)
+}
+
+module.exports = { companionPlatform, isLocalPanelUrl }

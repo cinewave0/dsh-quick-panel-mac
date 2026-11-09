@@ -10,20 +10,29 @@
  * token; the token itself is handed to the same-origin page through an
  * owner-only config resource.
  */
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import {
+  accessSync,
   appendFileSync,
+  chmodSync,
+  closeSync,
+  constants as fsConstants,
   existsSync,
+  createWriteStream,
   mkdirSync,
+  openSync,
   readFileSync,
   readdirSync,
   renameSync,
+  rmSync,
   statSync,
   writeFileSync,
 } from 'node:fs'
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { spawn } from 'node:child_process'
+import { Readable, Transform } from 'node:stream'
+import { pipeline } from 'node:stream/promises'
 import { fileURLToPath } from 'node:url'
 
 const ROUTE_BASE = '/quick-panel'
@@ -59,12 +68,229 @@ const ELECTRON_RELATIVE =
 /** Only Windows reports the sandbox init crash through these NTSTATUS exit codes. */
 const SANDBOX_FALLBACK_SUPPORTED = process.platform === 'win32'
 
-function electronExecutable() {
+/** A companion URL is only ever a loopback page; this is the Host-side half of that fence. */
+const LOCAL_ORIGIN = /^https?:\/\/(?:127\.0\.0\.1|localhost|\[::1\]):\d+$/u
+/** The page pings as soon as it boots; a local page that misses this has failed to load. */
+const COMPANION_READY_TIMEOUT = 10000
+const HELPER_LOG_LIMIT = 512 * 1024
+
+function electronSearchPaths() {
   const explicit = process.env.DSH_QUICK_PANEL_ELECTRON
-  if (explicit && existsSync(explicit)) return explicit
   const home = process.env.DSH_HOME || join(homedir(), '.dsh')
-  const candidate = join(home, 'electron', ELECTRON_RELATIVE)
-  return existsSync(candidate) ? candidate : null
+  return {
+    explicit: explicit || null,
+    fallback: join(home, 'electron', ELECTRON_RELATIVE),
+  }
+}
+
+/** `existsSync` alone would hand a directory or a non-executable file to spawn. */
+function isExecutableFile(candidate) {
+  try {
+    if (!statSync(candidate).isFile()) return false
+    if (process.platform !== 'win32') accessSync(candidate, fsConstants.X_OK)
+    return true
+  } catch (_error) {
+    return false
+  }
+}
+
+/**
+ * Resolve the Electron binary without spawning anything.
+ * `error` is a stable code the client can present; `searched` is diagnostic only.
+ */
+function resolveElectron() {
+  const { explicit, fallback } = electronSearchPaths()
+  const searched = [explicit, fallback].filter(Boolean)
+  for (const candidate of [explicit, fallback]) {
+    if (!candidate || !existsSync(candidate)) continue
+    if (!isExecutableFile(candidate)) return { error: 'electron-unusable', candidate, searched }
+    return { path: candidate, searched }
+  }
+  return { error: 'electron-missing', searched }
+}
+
+/**
+ * First-open provisioning. Electron is a 120 MB external runtime; the plugin
+ * cannot ship it, and asking users to install dsh-pet first is exactly the
+ * "installed but cannot open" failure this replaces. The zip is pinned to a
+ * version and checked against a pinned SHA-256 before extraction.
+ */
+const ELECTRON_VERSION = '43.3.0'
+const ELECTRON_ARTIFACTS = {
+  'darwin-arm64': {
+    sha256: 'ee939d1564d83d61032b3b3cb23af4e46005a4900c91f0695f7ed793f0ce6e83',
+    bytes: 122102881,
+  },
+  'darwin-x64': {
+    sha256: '7347bbd5fb529eea64f9c2d148bb1c19222d98946ff234ffe27953a1bbcb9dae',
+    bytes: 124293997,
+  },
+}
+const ELECTRON_MIRROR = 'https://cdn.npmmirror.com/binaries/electron'
+const ELECTRON_RELEASE = 'https://github.com/electron/electron/releases/download'
+const ELECTRON_INSTALL_TOTAL_TIMEOUT = 20 * 60 * 1000
+const ELECTRON_INSTALL_STALL_TIMEOUT = 60 * 1000
+
+function electronInstallPlan() {
+  const key = `${process.platform}-${process.arch}`
+  const artifact = ELECTRON_ARTIFACTS[key]
+  if (process.platform !== 'darwin' || !artifact) return null
+  const file = `electron-v${ELECTRON_VERSION}-darwin-${process.arch === 'arm64' ? 'arm64' : 'x64'}.zip`
+  const explicit = process.env.DSH_QUICK_PANEL_ELECTRON_MIRROR
+  const urls = [
+    ...(explicit ? [`${explicit.replace(/\/+$/u, '')}/${ELECTRON_VERSION}/${file}`] : []),
+    `${ELECTRON_MIRROR}/${ELECTRON_VERSION}/${file}`,
+    `${ELECTRON_RELEASE}/v${ELECTRON_VERSION}/${file}`,
+  ]
+  return { key, artifact, file, urls: [...new Set(urls)] }
+}
+
+/** Run a helper command without a shell; reject on non-zero exit or timeout. */
+function runCommand(command, args, timeout = 5 * 60 * 1000) {
+  return new Promise((resolve, reject) => {
+    let settled = false
+    let stderr = ''
+    const child = spawn(command, args, { stdio: ['ignore', 'ignore', 'pipe'] })
+    const timer = setTimeout(() => {
+      if (settled) return
+      settled = true
+      child.kill('SIGKILL')
+      reject(new Error(`${command} timed out`))
+    }, timeout)
+    child.stderr.on('data', (chunk) => {
+      if (stderr.length < 4000) stderr += chunk
+    })
+    child.on('error', (error) => {
+      if (settled) return
+      settled = true
+      clearTimeout(timer)
+      reject(error)
+    })
+    child.on('exit', (code, signal) => {
+      if (settled) return
+      settled = true
+      clearTimeout(timer)
+      if (code === 0) resolve()
+      else reject(new Error(`${command} code=${code} signal=${signal} ${stderr.slice(-1000)}`))
+    })
+  })
+}
+
+/** Download one URL to `destination`, hashing while streaming. */
+async function downloadElectronOne(url, plan, destination, onProgress) {
+  const controller = new AbortController()
+  let stallTimer = 0
+  let totalTimer = 0
+  let received = 0
+  let total = plan.artifact.bytes
+  const hash = createHash('sha256')
+  const armStall = () => {
+    clearTimeout(stallTimer)
+    stallTimer = setTimeout(() => controller.abort(), ELECTRON_INSTALL_STALL_TIMEOUT)
+  }
+  totalTimer = setTimeout(() => controller.abort(), ELECTRON_INSTALL_TOTAL_TIMEOUT)
+  armStall()
+  try {
+    const response = await fetch(url, { redirect: 'follow', signal: controller.signal })
+    if (!response.ok || !response.body) {
+      throw new Error(`HTTP ${response.status}${response.statusText ? ` ${response.statusText}` : ''}`)
+    }
+    const headerTotal = Number(response.headers.get('content-length'))
+    if (Number.isFinite(headerTotal) && headerTotal > 0) total = headerTotal
+    const meter = new Transform({
+      transform(chunk, _encoding, callback) {
+        received += chunk.length
+        hash.update(chunk)
+        onProgress({
+          status: 'downloading',
+          received,
+          total,
+          percent: total ? Math.min(99, Math.round((received / total) * 100)) : 0,
+        })
+        armStall()
+        callback(null, chunk)
+      },
+    })
+    await pipeline(Readable.fromWeb(response.body), meter, createWriteStream(destination))
+    const digest = hash.digest('hex')
+    onProgress({ status: 'verifying', received, total, percent: 100 })
+    if (digest !== plan.artifact.sha256) {
+      throw new Error(`sha256 mismatch: expected ${plan.artifact.sha256}, got ${digest}`)
+    }
+  } finally {
+    clearTimeout(stallTimer)
+    clearTimeout(totalTimer)
+  }
+}
+
+async function downloadElectronZip(plan, destination, onProgress) {
+  const errors = []
+  for (const url of plan.urls) {
+    try {
+      await downloadElectronOne(url, plan, destination, onProgress)
+      return
+    } catch (error) {
+      errors.push(`${url}: ${String((error && error.message) || error)}`)
+      rmSync(destination, { force: true })
+    }
+  }
+  throw new Error(`Electron download failed: ${errors.join(' | ')}`)
+}
+
+async function extractElectronZip(zip, staging, onProgress) {
+  onProgress({ status: 'extracting', percent: 100 })
+  rmSync(staging, { recursive: true, force: true })
+  mkdirSync(staging, { recursive: true })
+  const binary = join(staging, 'Electron.app', 'Contents', 'MacOS', 'Electron')
+  try {
+    await runCommand('/usr/bin/ditto', ['-x', '-k', zip, staging])
+  } catch (_error) {
+    /* ditto is macOS-only; unzip is the fallback and also covers odd zips */
+  }
+  if (!isExecutableFile(binary)) {
+    rmSync(staging, { recursive: true, force: true })
+    mkdirSync(staging, { recursive: true })
+    await runCommand('/usr/bin/unzip', ['-q', '-o', zip, '-d', staging])
+  }
+  try {
+    chmodSync(binary, 0o755)
+  } catch (_error) {
+    /* the zip already carries the executable bit */
+  }
+  if (!isExecutableFile(binary)) throw new Error('Electron.app binary is missing after extraction')
+  return binary
+}
+
+async function installElectronRuntime(plan, onProgress) {
+  const home = process.env.DSH_HOME || join(homedir(), '.dsh')
+  const directory = join(home, 'electron')
+  mkdirSync(directory, { recursive: true })
+  for (const name of readdirSync(directory)) {
+    if (name.startsWith('.download-') || name.startsWith('.staging-')) {
+      rmSync(join(directory, name), { recursive: true, force: true })
+    }
+  }
+  const zip = join(directory, `.download-${process.pid}.zip`)
+  const staging = join(directory, `.staging-${process.pid}`)
+  try {
+    await downloadElectronZip(plan, zip, onProgress)
+    await extractElectronZip(zip, staging, onProgress)
+    const target = join(directory, 'Electron.app')
+    if (existsSync(target)) rmSync(target, { recursive: true, force: true })
+    renameSync(join(staging, 'Electron.app'), target)
+    const installed = join(target, 'Contents', 'MacOS', 'Electron')
+    try {
+      chmodSync(installed, 0o755)
+    } catch (_error) {
+      /* the extracted bit should already be set */
+    }
+    if (!isExecutableFile(installed)) throw new Error('installed Electron binary is not executable')
+    await runCommand('/usr/bin/xattr', ['-dr', 'com.apple.quarantine', target]).catch(() => {})
+    return { path: installed }
+  } finally {
+    rmSync(zip, { force: true })
+    rmSync(staging, { recursive: true, force: true })
+  }
 }
 
 function stateDirectory() {
@@ -156,7 +382,17 @@ function eventAssistantBlocks(content) {
 function note(message) {
   try {
     mkdirSync(stateDirectory(), { recursive: true })
-    appendFileSync(join(stateDirectory(), 'helper.log'), `${new Date().toISOString()} ${message}\n`)
+    const file = join(stateDirectory(), 'helper.log')
+    try {
+      if (statSync(file).size > HELPER_LOG_LIMIT) {
+        const rotated = `${file}.1`
+        rmSync(rotated, { force: true })
+        renameSync(file, rotated)
+      }
+    } catch (_error) {
+      /* no log yet, or the rotation target is not removable */
+    }
+    appendFileSync(file, `${new Date().toISOString()} ${message}\n`)
   } catch (_error) {
     /* diagnostics are best effort */
   }
@@ -561,6 +797,21 @@ export function apply(ctx) {
   let child = null
   let companionBeat = 0
   let companionSpawnedAt = 0
+  /** Last exit/error from a spawned helper, so a failed launch can be reported. */
+  let companionExit = null
+  let lastRaiseAt = 0
+  /** First-open Electron provisioning state; one download at a time per Host. */
+  let runtimeInstall = {
+    status: 'idle',
+    version: ELECTRON_VERSION,
+    received: 0,
+    total: 0,
+    percent: 0,
+    error: null,
+    startedAt: 0,
+    path: null,
+  }
+  let runtimeInstallTask = null
   /** Durable image refs currently referenced by the mirrored live feed. */
   const imageRefs = new Map()
   /** Decoded bytes for the thumbnails the companion actually requested. */
@@ -1138,38 +1389,85 @@ export function apply(ctx) {
   }
   let sandboxFallback = false
 
-  const launchWindow = (executable, main, url) => {
-    const args = sandboxFallback ? ['--no-sandbox', main, `--url=${url}`] : [main, `--url=${url}`]
-    const environment = { ...process.env, QUICK_PANEL_URL: url, QUICK_PANEL_HOST_PID: String(process.pid) }
+  /** The helper only ever loads a loopback page; reject a public/TLS origin before spawning. */
+  const companionOrigin = () => {
+    let origin
+    try {
+      origin = webServer.getOrigin()
+    } catch (_error) {
+      return { ok: false, error: 'origin-unavailable' }
+    }
+    if (!LOCAL_ORIGIN.test(origin)) return { ok: false, error: 'unsupported-origin', origin }
+    return { ok: true, origin }
+  }
+
+  const companionUrl = (origin) =>
+    `${origin}${ROUTE_BASE}/panel?token=${encodeURIComponent(token)}`
+
+  const helperEnvironment = (url) => {
+    const environment = {
+      ...process.env,
+      QUICK_PANEL_URL: url,
+      QUICK_PANEL_HOST_PID: String(process.pid),
+    }
     delete environment.ELECTRON_RUN_AS_NODE
+    return environment
+  }
+
+  /** Keep Electron's own stderr (sandbox/load failures) next to the Host's spawn notes. */
+  const helperLogDescriptor = () => {
     try {
       mkdirSync(stateDirectory(), { recursive: true })
+      return openSync(join(stateDirectory(), 'helper.log'), 'a')
     } catch (_error) {
-      /* the home directory should exist */
+      return null
     }
+  }
+
+  const launchWindow = (executable, main, url) => {
+    const args = sandboxFallback ? ['--no-sandbox', main, `--url=${url}`] : [main, `--url=${url}`]
+    const environment = helperEnvironment(url)
+    const logFd = helperLogDescriptor()
+    const stdio = logFd === null ? 'ignore' : ['ignore', logFd, logFd]
     const startedAt = Date.now()
     let spawned
     try {
       spawned = spawn(executable, args, {
         cwd: stateDirectory(),
         detached: true,
-        stdio: 'ignore',
+        stdio,
         windowsHide: true,
         env: environment,
       })
     } catch (error) {
-      return { ok: false, error: String((error && error.message) || error) }
+      if (logFd !== null) closeSync(logFd)
+      const detail = String((error && error.message) || error)
+      note(`spawn failed ${detail}`)
+      return { ok: false, error: 'spawn-failed', detail }
+    }
+    if (logFd !== null) {
+      try {
+        closeSync(logFd)
+      } catch (_error) {
+        /* the child owns its duplicate */
+      }
     }
     child = spawned
     companionSpawnedAt = Date.now()
     companionBeat = 0
+    companionExit = null
     note(`spawn pid=${spawned.pid} noSandbox=${sandboxFallback} url=${url.split('?')[0]}`)
     spawned.on('error', (error) => {
-      note(`spawn error ${String((error && error.message) || error)}`)
+      const detail = String((error && error.message) || error)
+      note(`spawn error ${detail}`)
+      companionExit = { error: detail }
+      companionSpawnedAt = 0
       if (child === spawned) child = null
     })
     spawned.on('exit', (code, signal) => {
       note(`exit code=${code} signal=${signal}`)
+      companionExit = { code, signal }
+      companionSpawnedAt = 0
       if (child === spawned) child = null
       const sandboxCrash = code === 2147483651 || code === -2147483645
       if (
@@ -1184,22 +1482,179 @@ export function apply(ctx) {
       }
     })
     spawned.unref()
-    return { ok: true }
+    return { ok: true, spawned }
   }
 
-  const openWindow = () => {
-    if (child && !child.killed) return { ok: true, alreadyOpen: true }
-    const executable = electronExecutable()
-    if (!executable) return { ok: false, error: 'electron-missing' }
-    const main = join(packageRoot, 'runtime', 'electron-helper', 'main.cjs')
-    let origin
-    try {
-      origin = webServer.getOrigin()
-    } catch (_error) {
-      return { ok: false, error: 'origin-unavailable' }
+  /**
+   * The page pings `/action {type:'companion-ping'}` from its own boot code.
+   * Waiting for that ping is the only way to distinguish "spawned" from "the
+   * window is actually usable"; a local page that misses the deadline failed.
+   */
+  const waitForCompanion = async (spawned) => {
+    let current = spawned
+    const deadline = Date.now() + COMPANION_READY_TIMEOUT
+    while (Date.now() < deadline) {
+      if (companionBeat > 0) return { ok: true }
+      if (!child || child !== current) {
+        if (sandboxFallback && child) {
+          current = child
+          continue
+        }
+        return { ok: false, error: 'spawn-failed', detail: companionExit }
+      }
+      await new Promise((resolve) => setTimeout(resolve, 100))
     }
-    const url = `${origin}${ROUTE_BASE}/panel?token=${encodeURIComponent(token)}`
-    return launchWindow(executable, main, url)
+    note('companion timeout waiting for the first ping')
+    return { ok: false, error: 'companion-timeout' }
+  }
+
+  /**
+   * Already open: ask the existing instance to raise itself. Electron forwards a
+   * second launch to the lock owner as `second-instance`; the helper turns that
+   * into `setMode('panel')`, which restores a minimized window.
+   */
+  const raiseExistingCompanion = () => {
+    if (Date.now() - lastRaiseAt < 1500) return { ok: true, alreadyOpen: true }
+    lastRaiseAt = Date.now()
+    const resolved = resolveElectron()
+    if (!resolved.path) {
+      note(`raise rejected: ${resolved.error} searched=${resolved.searched.join(',')}`)
+      return { ok: false, error: resolved.error, searched: resolved.searched }
+    }
+    const target = companionOrigin()
+    if (!target.ok) {
+      note(`raise rejected: ${target.error} origin=${target.origin || ''}`)
+      return target
+    }
+    const main = join(packageRoot, 'runtime', 'electron-helper', 'main.cjs')
+    const url = companionUrl(target.origin)
+    try {
+      const spawned = spawn(resolved.path, [main, `--url=${url}`], {
+        cwd: stateDirectory(),
+        detached: true,
+        stdio: 'ignore',
+        windowsHide: true,
+        env: helperEnvironment(url),
+      })
+      spawned.on('error', (error) => {
+        note(`raise error ${String((error && error.message) || error)}`)
+      })
+      spawned.unref()
+      note(`raise requested pid=${spawned.pid}`)
+      return { ok: true, alreadyOpen: true, raised: true }
+    } catch (error) {
+      const detail = String((error && error.message) || error)
+      note(`raise failed ${detail}`)
+      return { ok: false, error: 'spawn-failed', detail }
+    }
+  }
+
+  const runtimeView = () => ({
+    status: runtimeInstall.status,
+    version: runtimeInstall.version,
+    received: runtimeInstall.received,
+    total: runtimeInstall.total,
+    percent: runtimeInstall.percent,
+    error: runtimeInstall.error,
+    startedAt: runtimeInstall.startedAt,
+    supported: Boolean(electronInstallPlan()),
+  })
+
+  const startRuntimeInstall = () => {
+    if (runtimeInstallTask) return runtimeInstallTask
+    const plan = electronInstallPlan()
+    if (!plan) {
+      runtimeInstall = { ...runtimeInstall, status: 'failed', error: 'runtime-unavailable' }
+      return null
+    }
+    runtimeInstall = {
+      status: 'downloading',
+      version: ELECTRON_VERSION,
+      received: 0,
+      total: plan.artifact.bytes,
+      percent: 0,
+      error: null,
+      startedAt: Date.now(),
+      path: null,
+    }
+    runtimeInstallTask = installElectronRuntime(plan, (update) => {
+      runtimeInstall = { ...runtimeInstall, ...update, version: ELECTRON_VERSION }
+    })
+      .then((result) => {
+        runtimeInstall = {
+          ...runtimeInstall,
+          status: 'ready',
+          received: runtimeInstall.total,
+          percent: 100,
+          error: null,
+          path: result.path,
+        }
+        note(`runtime installed ${result.path}`)
+        return result
+      })
+      .catch((error) => {
+        const detail = String((error && error.message) || error)
+        runtimeInstall = { ...runtimeInstall, status: 'failed', error: detail }
+        note(`runtime install failed ${detail}`)
+        return null
+      })
+      .finally(() => {
+        runtimeInstallTask = null
+      })
+    return runtimeInstallTask
+  }
+
+  /**
+   * A missing runtime is not an error the user should fix by hand: start the
+   * pinned download and tell the client to poll `/quick-panel/runtime`.
+   */
+  const provisionRuntime = (resolved) => {
+    if (resolved.error === 'electron-unusable' && resolved.candidate === electronSearchPaths().explicit) {
+      note(`open rejected: explicit electron-unusable ${resolved.candidate}`)
+      return { ok: false, error: 'electron-unusable', searched: resolved.searched }
+    }
+    if (process.env.DSH_QUICK_PANEL_NO_RUNTIME_DOWNLOAD === '1') {
+      note(`open rejected: ${resolved.error} (auto-install disabled) searched=${resolved.searched.join(',')}`)
+      return { ok: false, error: resolved.error, searched: resolved.searched }
+    }
+    if (!electronInstallPlan()) {
+      note(`open rejected: runtime-unavailable ${process.platform}-${process.arch}`)
+      return { ok: false, error: 'runtime-unavailable', searched: resolved.searched }
+    }
+    // A recorded "ready" that no longer resolves means the installed app was
+    // moved or damaged; retry from a clean state instead of lying forever.
+    if (runtimeInstall.status === 'ready') {
+      runtimeInstall = { ...runtimeInstall, status: 'failed', error: 'installed runtime is not executable' }
+    }
+    if (runtimeInstall.status === 'failed') {
+      runtimeInstall = {
+        ...runtimeInstall,
+        status: 'idle',
+        received: 0,
+        percent: 0,
+        error: null,
+        startedAt: 0,
+      }
+    }
+    if (runtimeInstall.status === 'idle') void startRuntimeInstall()
+    note(`open: provisioning Electron (${resolved.error})`)
+    return { ok: false, error: 'electron-installing', runtime: runtimeView() }
+  }
+
+  const openWindow = async () => {
+    if (child && !child.killed) return raiseExistingCompanion()
+    const resolved = resolveElectron()
+    if (!resolved.path) return provisionRuntime(resolved)
+    const target = companionOrigin()
+    if (!target.ok) {
+      note(`open rejected: ${target.error} origin=${target.origin || ''}`)
+      return target
+    }
+    const main = join(packageRoot, 'runtime', 'electron-helper', 'main.cjs')
+    const url = companionUrl(target.origin)
+    const launched = launchWindow(resolved.path, main, url)
+    if (!launched.ok) return launched
+    return waitForCompanion(launched.spawned)
   }
 
   const configRoute = {
@@ -1263,7 +1718,22 @@ export function apply(ctx) {
         dshFocused: live.dshFocused,
         dshVisible: live.dshVisible,
         usage: usageView(),
+        runtime: runtimeView(),
       })
+    },
+  }
+
+  const runtimeRoute = {
+    kind: 'exact',
+    path: `${ROUTE_BASE}/runtime`,
+    handler: (request, response) => {
+      const url = requestUrl(request)
+      if (!url) return sendJson(response, 400, { ok: false, error: 'bad-request' })
+      if (request.method !== 'GET') return sendJson(response, 405, { ok: false, error: 'method' })
+      if (tokenFrom(request, url) !== token) {
+        return sendJson(response, 401, { ok: false, error: 'unauthorized' })
+      }
+      sendJson(response, 200, { ok: true, ...runtimeView() })
     },
   }
 
@@ -1387,10 +1857,11 @@ export function apply(ctx) {
         return sendJson(response, 400, { ok: false, error: 'invalid-body' })
       }
       if (body.type === 'open-window') {
-        return sendJson(response, 200, openWindow())
+        return sendJson(response, 200, await openWindow())
       }
       if (body.type === 'companion-ping') {
         companionBeat = Date.now()
+        companionSpawnedAt = 0
         return sendJson(response, 200, { ok: true })
       }
       if (body.type === 'set-approval-lock') {
@@ -1734,6 +2205,7 @@ export function apply(ctx) {
       ctx.on('approval/request', handleApprovalRequest, { prepend: true }),
       webServer.register(configRoute),
       webServer.register(stateRoute),
+      webServer.register(runtimeRoute),
       webServer.register(attachmentRoute),
       webServer.register(uploadRoute),
       webServer.register(actionRoute),
@@ -1771,3 +2243,6 @@ export function apply(ctx) {
     }
   }, 'quick-panel: host api')
 }
+
+/** Test seam: exercises download/hash/extract without the real 120 MB artifact. */
+export { installElectronRuntime }

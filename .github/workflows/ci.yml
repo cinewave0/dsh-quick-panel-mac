@@ -19,6 +19,8 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-node@v5
         with:
@@ -26,6 +28,9 @@ jobs:
 
       - name: Install
         run: npm install --no-audit --no-fund
+
+      - name: Market index points at a matching commit
+        run: node scripts/check-market-index.mjs
 
       - name: Build client bundle
         run: node scripts/build-client.mjs
@@ -62,6 +67,33 @@ jobs:
 
       - name: Platform rules
         run: node test/platform.test.mjs
+
+      - name: Runtime provisioning
+        run: node test/runtime-install.test.mjs
+
+      - name: Cache Electron for the helper smoke test
+        if: runner.os == 'macOS'
+        uses: actions/cache@v4
+        with:
+          path: ~/.dsh/electron
+          key: electron-43.3.0-${{ runner.arch }}
+
+      - name: Install Electron for the helper smoke test
+        if: runner.os == 'macOS'
+        run: |
+          if [ ! -x "$HOME/.dsh/electron/Electron.app/Contents/MacOS/Electron" ]; then
+            case "$(uname -m)" in
+              arm64) archive=electron-v43.3.0-darwin-arm64.zip ;;
+              *) archive=electron-v43.3.0-darwin-x64.zip ;;
+            esac
+            mkdir -p "$HOME/.dsh/electron"
+            curl -L --fail -o /tmp/electron.zip "https://github.com/electron/electron/releases/download/v43.3.0/$archive"
+            unzip -q -o /tmp/electron.zip -d "$HOME/.dsh/electron"
+          fi
+
+      - name: Real helper launch smoke test
+        if: runner.os == 'macOS'
+        run: env -u ELECTRON_RUN_AS_NODE node test/helper.test.mjs
 
       - name: Package contents
         run: npm pack --dry-run

@@ -32,7 +32,7 @@
           "source": {
             "type": "git",
             "url": "https://github.com/cinewave0/dsh-quick-panel-mac",
-            "commit": "048f15f751124b782d121db7dff6423a22de7dc4"
+            "commit": "e6f1d4afde35cfa663d0aaa1bea1e9b6cf806c22"
           },
           "engines": {
             "dsh": ">=0.2.2-rc.1 <0.3.0"

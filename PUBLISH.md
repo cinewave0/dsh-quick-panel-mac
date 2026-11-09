@@ -97,11 +97,13 @@ cd '<项目目录>'
 # 2. 先提交源码（这个 commit 会被市场固定）
 git add .
 git commit -m "release: v1.0.1"
+source_commit=$(git rev-parse HEAD)
 
-# 3. 用当前 HEAD 生成索引
-node scripts/make-market-index.mjs
+# 3. 用源码 commit 生成索引（不要用 index 提交自己的 HEAD）
+node scripts/make-market-index.mjs "$source_commit"
 
-# 4. 提交索引
+# 4. 校验后再提交索引
+node scripts/check-market-index.mjs
 git add market/index.json
 git commit -m "market: add v1.0.1"
 git tag v1.0.1
@@ -109,7 +111,7 @@ git tag v1.0.1
 git push origin main --tags
 ```
 
-注意顺序：**先提交源码，再生成 index**。索引里的 commit 必须指向包含插件代码的那个提交；不要把 index 提交自己的 commit 写进去。
+注意顺序：**先提交源码，再生成 index**。索引里的 `source.commit` 必须指向包含插件代码和正确 `package.json` 版本的那个提交；不要把 index 提交自己的 commit 写进去。`npm run check:market` 会读取该 commit 的 `package.json` 并拒绝版本不一致的索引。
 
 ## 6. 官方索引
 

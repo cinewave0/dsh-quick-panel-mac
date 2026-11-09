@@ -127,3 +127,19 @@ env -u ELECTRON_RUN_AS_NODE node test/panel.test.mjs
 ## 11. 与 Windows 仓库的关系
 
 本仓库是从 Windows 仓库 `main@d4f203b` 分出来的独立项目，只发布 macOS 版。两个仓库各自打 tag、各自发 Release、各自有 Pages 索引；**不合并、不同步**。Windows 的问题在 Windows 仓库里发现和修复。
+
+## 12. 2026-11-09 打不开独立面板的修复记录
+
+实际原因：本机 `~/.dsh/electron` 不存在，Host 的 `openWindow()` 在 spawn 前返回 `electron-missing`；旧 UI 把该错误显示成「Host 未连接」，且不写 `helper.log`。
+
+已修：
+
+- 安装 Electron 43.3.0 到 `~/.dsh/electron`，独立窗恢复；
+- 首次打开自动下载/校验/解压 Electron 43.3.0 到 `~/.dsh/electron`（npmmirror 优先、GitHub 回退，SHA-256 固定），不再依赖 dsh-pet 或手工安装；
+- Host：`resolveElectron()` 预检（存在性/可执行位/是否文件）、`electron-missing`/`electron-unusable` 写 `helper.log`、spawn 后等待首次 `companion-ping` 再返回成功、已有窗口时用第二实例 raise、Host 侧回环 origin 预检、Electron stderr 写入 `helper.log`、日志轮转；
+- Helper：`localhost`/`[::1]`/HTTPS 白名单、`did-fail-load`/`loadURL` 失败退出、最小化恢复、`leftClickOpensMenu`/`framelessEdgeResizable` 标记真正接进窗口；
+- 客户端：按 Host 错误码显示具体文案，重新生成 `client.js`；
+- 发布：`market/index.json` 改指向 `e6f1d4a`（beta.4 的 release commit），新增 `scripts/check-market-index.mjs`，CI/release 校验索引 commit 的 `package.json` 版本；
+- 测试：Host 14 项、platform 4 项、真实 helper 启动 smoke、面板 DOM 测试；CI macOS 安装 Electron 后跑 helper smoke。
+
+未验证：Windows 实机回归；GitHub macOS runner 的 GUI 会话是否允许 helper 开窗。发布新版本时先 bump `package.json`，按 `PUBLISH.md` 的两步提交（先源码 commit，再 index commit）。

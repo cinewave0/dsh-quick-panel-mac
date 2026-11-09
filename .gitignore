@@ -1,5 +1,7 @@
 node_modules/
 test/.state/
+test/.helper-home/
+test/.runtime-home/
 test/.userdata/
 test/output/
 tools/

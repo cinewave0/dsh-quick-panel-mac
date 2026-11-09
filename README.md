@@ -1,6 +1,6 @@
 # 快捷面板 · macOS / Quick Panel for macOS
 
-> 当前版本：1.0.4-beta.4（预发布）
+> 当前版本：1.0.4-beta.5（预发布）
 
 [![CI](https://github.com/cinewave0/dsh-quick-panel-mac/actions/workflows/ci.yml/badge.svg)](https://github.com/cinewave0/dsh-quick-panel-mac/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/cinewave0/dsh-quick-panel-mac)](https://github.com/cinewave0/dsh-quick-panel-mac/releases)
@@ -22,9 +22,30 @@ DSH Desktop 的快捷面板插件，**macOS 版**：在 DSH 窗口内提供一�
 
 - **macOS 12+**（独立小应用依赖 Electron 的窗口 API）。
 - DSH Desktop（Host 半区需要 `webServer` 与 `sessionController`）。
-- Electron：`~/.dsh/electron/Electron.app/Contents/MacOS/Electron`（通常由 dsh-pet 下载，缺失时可运行 dsh-pet 的 `scripts/ensure-electron.mjs`）。
+- Electron 43.x：独立窗由 Host 拉起一个外部 Electron 进程。**首次点“打开独立面板”时，Host 会自动下载、校验并安装 Electron 43.3.0（约 120 MB，macOS arm64 / x64），然后直接开窗。** 不需要 dsh-pet，也不需要手工解压。
 
-  路径缺失时打开独立窗会提示 `electron-missing`；指向别处的 Electron 可设 `DSH_QUICK_PANEL_ELECTRON`。
+  - 下载源：默认先走 npmmirror CDN，失败后回退 GitHub Releases；zip 的 SHA-256 固定在校验表里，镜像无法替换二进制。
+  - 自定义镜像：`DSH_QUICK_PANEL_ELECTRON_MIRROR=https://your.mirror/electron`（该目录下需有 `43.3.0/electron-v43.3.0-darwin-arm64.zip` 或 `...-x64.zip`）。
+  - 已有 Electron：默认路径 `~/.dsh/electron/Electron.app/Contents/MacOS/Electron`；也可以设置 `DSH_QUICK_PANEL_ELECTRON` 指向可执行文件（重启 DSH 生效）。
+  - 离线/企业环境：设置 `DSH_QUICK_PANEL_NO_RUNTIME_DOWNLOAD=1` 关闭自动下载，再按下面的命令手动安装。
+
+  手动安装（Apple Silicon；Intel 把 `darwin-arm64` 换成 `darwin-x64`）：
+
+  ```sh
+  mkdir -p ~/.dsh/electron
+  curl -L --fail -o /tmp/electron.zip \
+    https://github.com/electron/electron/releases/download/v43.3.0/electron-v43.3.0-darwin-arm64.zip
+  unzip -q -o /tmp/electron.zip -d ~/.dsh/electron
+  test -x ~/.dsh/electron/Electron.app/Contents/MacOS/Electron && echo ok
+  ```
+
+  从浏览器下载的 zip 可能带隔离属性，必要时执行：
+
+  ```sh
+  xattr -dr com.apple.quarantine ~/.dsh/electron/Electron.app
+  ```
+
+  自动安装成功后不需要重启 DSH（Host 每次打开时解析路径）。用 `DSH_QUICK_PANEL_ELECTRON` 指向别处时，需要重启 DSH 让环境变量进入 Host 进程。路径缺失/不可执行时，面板会显示具体错误并把查找路径和 Electron stderr 写进 `~/.dsh/quick-panel/helper.log`。
 
 ## 安装
 
@@ -38,13 +59,13 @@ DSH Desktop 的快捷面板插件，**macOS 版**：在 DSH 窗口内提供一�
 https://cinewave0.github.io/dsh-quick-panel-mac/market/index.json
 ```
 
-然后搜索 **Quick Panel** 安装。索引固定到某个 commit，装完即用。
+然后搜索 **Quick Panel** 安装。装完刷新 DSH 页面，第一次点“打开独立面板”会自动下载并安装 Electron（约 120 MB），不需要 dsh-pet 或手工解压。索引固定到某个 commit；该 commit 的 `package.json` 版本必须与索引的 `version` 一致（`npm run check:market` 会校验，release workflow 也会跑）。
 
 > 索引当前指向预发布版。想留在稳定版，用下面的 Release 包安装 `v1.0.3`。
 
 ### 方式二：Release 包
 
-从 [Releases](https://github.com/cinewave0/dsh-quick-panel-mac/releases) 下载 `dsh-quick-panel-mac-1.0.4-beta.4.tgz`，先用 `SHA256SUMS` 校验：
+从 [Releases](https://github.com/cinewave0/dsh-quick-panel-mac/releases) 下载 `dsh-quick-panel-mac-1.0.4-beta.5.tgz`，先用 `SHA256SUMS` 校验：
 
 ```sh
 shasum -a 256 -c SHA256SUMS          # macOS / Linux
@@ -54,7 +75,7 @@ certutil -hashfile <tgz> SHA256      # Windows，与 SHA256SUMS 里的值比对
 然后在 DSH 插件页的安装入口填 tgz 的**绝对路径**；装了 `dsh` CLI 的环境也可以直接用命令行：
 
 ```sh
-dsh plugin --profile desktop add /绝对路径/dsh-quick-panel-mac-1.0.4-beta.4.tgz
+dsh plugin --profile desktop add /绝对路径/dsh-quick-panel-mac-1.0.4-beta.5.tgz
 ```
 
 > 桌面版 App 不一定把 `dsh` 命令装进 `PATH`，没有 CLI 时用插件页安装即可。
@@ -121,9 +142,11 @@ macOS 上是同一套面板（浮岛 / 面板 / 托盘 / Dock 隐藏 / 底部拖
 
 **打不开独立面板**
 
-- DSH 面板提示「Host 未连接」：Host 半区未加载，重启 DSH；
-- 提示其他错误：查看 `helper.log` 的 spawn / exit 记录；
-- 独立窗启动后立即消失：确认 Electron 路径存在，或查看 `helper.log` 的沙箱重试记录。
+- 提示「Host 未连接」：Host 半区未加载，重启 DSH；也可能是页面在安装插件之前就打开了，刷新一次 DSH 页面。
+- 首次打开显示“正在下载 Electron 运行时”：这是正常的一次性安装（约 120 MB），进度会显示在面板上；下载完成后会自动开窗。失败后再点一次会重试，详情看 `~/.dsh/quick-panel/helper.log`。
+- 提示启动失败 / 未就绪：看 `~/.dsh/quick-panel/helper.log`。常见原因是下载源不可达、路径不可执行、或 DSH 的地址不是本机回环地址。
+- 独立窗启动后立即消失：`helper.log` 里会有 spawn/exit 记录；Electron 自己的 stderr（沙箱、`did-fail-load`）也会写进同一文件。
+- 已打开但被最小化/藏到别的 Space：再点一次“打开独立面板”会通过 Electron 的第二实例通知把现有窗口拉回来。
 
 **独立窗没有实时消息**
 
@@ -140,7 +163,7 @@ macOS 上是同一套面板（浮岛 / 面板 / 托盘 / Dock 隐藏 / 底部拖
 ## 已知限制
 
 - 支持 Windows 与 macOS；独立小应用依赖 DSH 运行与 `$DSH_HOME/electron`；
-- macOS 差异：浮岛不占 Dock（`app.dock.hide()`）、无边框窗没有系统缩放边（面板高度由底部自绘 grip 拖动）、菜单栏图标用模板图（随深浅色自动反色）、通知以 Electron 身份出现（未做 `.app` 签名打包）；
+- macOS 差异：浮岛不占 Dock（`app.dock.hide()`）、面板用带隐藏标题栏的真实窗口获得原生高度缩放边（宽度锁 440）、菜单栏图标用模板图（随深浅色自动反色）、通知以 Electron 身份出现（未做 `.app` 签名打包）；
 - 独立窗实时消息：Host 能在 DSH 离开对话页后继续镜像新的已结算事件，并在上滚时从 Host 会话事件加载更早；流式 partial 仍依赖 DSH 对话页；
 - 独立窗问题卡：当前会话的 pending 问题会镜像；多题用上一题/下一题，提交后等待 DSH 确认；
 - 独立窗会话切换：数字按钮只负责发起请求，真正切换发生在 DSH 页面内的客户端插件（轮询间隔约 2.5 秒）；DSH 页面关闭或插件未加载时请求会在 30 秒后过期，界面不报错也不切换；
@@ -149,6 +172,7 @@ macOS 上是同一套面板（浮岛 / 面板 / 托盘 / Dock 隐藏 / 底部拖
 - 权限批准卡：默认在 DSH 页面可见时显示 DSH 内建卡；DSH 页面隐藏、独立窗心跳在线且当前对话匹配时由外部面板接管。外部面板「实时消息」下方的**审批锁定在外部面板**勾选后，即使 DSH 可见也由外部面板接管；取消勾选恢复 DSH 内建审批。审批被接管时面板会响提示音并弹桌面通知（标题含工具名，回答后通知关闭）。关闭独立窗或心跳丢失时始终交还 DSH；不再有 120 秒超时兜底；
 - 时间栏的“30 日”是本机 DSH 会话投影的近似总量（含缓存读取），不是平台账单；余额需要已登录 DeepSeek 账号，API Key 模式显示 `—`，余额缓存约 5 分钟；
 - 多显示器/跨 DPI 场景未完整验证；
+- 本次启动/错误处理改动（spawn 就绪等待、URL 白名单、`did-fail-load`）在 macOS 实机验证；Windows 路径保持原行为，但未在 Windows 实机回归；
 - 独立窗提醒与 DSH 面板的“单一负责人”协调仍在完善。
 
 ## 开发目录
@@ -177,8 +201,11 @@ node test/client-bundle.test.mjs                 # 客户端 bundle 信封/工�
 node test/dsh-adapter.test.mjs                   # DSH 服务适配层与降级路径
 node test/source-imports.test.mjs                # 源码模块导入完整性
 node test/platform.test.mjs                      # 平台规则（托盘/Dock/置顶/菜单）
-node test/panel.test.mjs                         # Electron 面板集成测试（需 $DSH_HOME/electron）
+node test/panel.test.mjs                         # Electron 面板 DOM 集成测试（需 $DSH_HOME/electron）
+node test/helper.test.mjs                        # 真实 Electron helper 启动/首次 ping 冒烟测试（需 Electron）
+node test/runtime-install.test.mjs               # 首次打开时 Electron 下载/校验/解压/安装
 npm run lint                                     # oxlint（0 warning 门槛）
+npm run check:market                             # Discover 索引 version 与 commit 的 package.json 一致
 node scripts/backup.mjs                          # 备份到 ../backups（zip + sha256 + manifest）
 node scripts/sync-github.mjs --message "..."     # 提交 + 测试 + push
 node scripts/sync-github.mjs --dry-run           # 只看计划，不提交不推送

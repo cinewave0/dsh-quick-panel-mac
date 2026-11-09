@@ -4,7 +4,7 @@ const { app, BrowserWindow, Menu, Tray, ipcMain, nativeImage, screen } = require
 const fs = require('node:fs')
 const os = require('node:os')
 const path = require('node:path')
-const { companionPlatform } = require('./platform.cjs')
+const { companionPlatform, isLocalPanelUrl } = require('./platform.cjs')
 
 const PANEL_WIDTH = 440
 const PANEL_MIN_HEIGHT = 560
@@ -20,7 +20,7 @@ app.setName('dsh-quick-panel-mac')
 const urlArgument = process.argv.find((value) => value.startsWith('--url='))
 const target =
   process.env.QUICK_PANEL_URL || (urlArgument ? urlArgument.slice('--url='.length) : '')
-const allowed = /^http:\/\/127\.0\.0\.1:\d+\//.test(target)
+const allowed = isLocalPanelUrl(target)
 
 const home = process.env.DSH_HOME || path.join(os.homedir(), '.dsh')
 const boundsFile = path.join(home, 'quick-panel', 'window.json')
@@ -239,6 +239,7 @@ function queueSave() {
 
 function setMode(next) {
   if (!mainWindow || mainWindow.isDestroyed()) return
+  if (mainWindow.isMinimized()) mainWindow.restore()
   if (next === mode) {
     if (next === 'panel') {
       setDockVisible(true)
@@ -356,7 +357,7 @@ function createTray() {
         },
       ]),
     )
-    tray.on('click', () => setMode('panel'))
+    if (!PLATFORM.leftClickOpensMenu) tray.on('click', () => setMode('panel'))
   } catch (_error) {
     /* the tray is optional */
   }
@@ -389,7 +390,7 @@ function createWindow() {
     // A real frame with a hidden title bar: macOS then owns the resize edges,
     // which a frameless window does not have. The traffic lights are hidden
     // below so only our own header is visible.
-    frame: PLATFORM.mac,
+    frame: !PLATFORM.framelessEdgeResizable,
     titleBarStyle: PLATFORM.mac ? 'hidden' : 'default',
     show: true,
     resizable: false,
@@ -425,10 +426,30 @@ function createWindow() {
   if (PLATFORM.mac && typeof mainWindow.setWindowButtonVisibility === 'function') {
     mainWindow.setWindowButtonVisibility(false)
   }
-  mainWindow.loadURL(launchUrl)
-  mainWindow.webContents.on('will-navigate', (event, url) => {
-    if (!/^https?:\/\/127\.0\.0\.1:\d+\//.test(url)) event.preventDefault()
+  mainWindow.loadURL(launchUrl).catch((error) => {
+    console.error(`quick-panel: loadURL rejected: ${String((error && error.message) || error)}`)
+    if (!quitting) {
+      quitting = true
+      app.quit()
+    }
   })
+  mainWindow.webContents.on('will-navigate', (event, url) => {
+    if (!isLocalPanelUrl(url)) event.preventDefault()
+  })
+  mainWindow.webContents.on(
+    'did-fail-load',
+    (_event, errorCode, errorDescription, failedUrl, isMainFrame) => {
+      if (!isMainFrame) return
+      const safeUrl = String(failedUrl || '').split('?')[0]
+      console.error(`quick-panel: did-fail-load code=${errorCode} ${errorDescription} url=${safeUrl}`)
+      // A blank window would be reported as "opened" by the Host; quit so the
+      // spawn readiness wait can surface a real error instead.
+      if (!quitting) {
+        quitting = true
+        app.quit()
+      }
+    },
+  )
   mainWindow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
 
   const raiseWindow = () => {

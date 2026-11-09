@@ -90,6 +90,12 @@ dsh plugin --profile desktop add "git+https://github.com/cinewave0/cinewave0-dsh
 - 时钟右侧显示余额（与时钟同尺寸）和本次 token 总量、输出速度、最近 30 天 token 总量（日期字号）；
 - 托盘退出才会真正结束小应用。
 
+macOS 上是同一套面板（浮岛 / 面板 / 托盘 / Dock 隐藏 / 底部拖动改高度）：
+
+![macOS 浮岛](docs/mac-island.png)
+
+![macOS 面板](docs/mac-panel.png)
+
 ## 数据
 
 路径以 `$DSH_HOME`（Windows `%USERPROFILE%\.dsh`，macOS `~/.dsh`）为根：

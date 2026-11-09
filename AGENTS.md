@@ -54,6 +54,7 @@
 | `node test/platform.test.mjs` | ✅ | ✅ | 三个平台的规则断言 |
 | `node test/client-bundle.test.mjs` | ✅ | ✅ | 含 `client.js` 漂移检查（配合 `npm run build`） |
 | `node test/panel.test.mjs` | ✅ | ✅ | 需要 `$DSH_HOME/electron`；macOS 上见下条 |
+| `npm run demo` | ✅ | ✅ | 起真实独立窗 + 演示 Host（`demo/`），不需要 DSH 在跑 |
 
 macOS 上手工拉 Electron 必须去掉 `ELECTRON_RUN_AS_NODE`（DSH 的进程树里带着它，否则 Electron 会以 Node 模式启动）：
 

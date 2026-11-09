@@ -231,6 +231,24 @@ function setMode(next) {
     return
   }
   saveCurrent()
+  // macOS: a panel remembers where it was, but if the island has since moved to
+  // another display, reopening there would put the window on a screen the user
+  // is not looking at. Re-centre on the island's display instead.
+  if (PLATFORM.mac && next === 'panel' && panelBounds && islandBounds) {
+    const islandDisplay = screen.getDisplayMatching({
+      x: islandBounds.x,
+      y: islandBounds.y,
+      width: 1,
+      height: 1,
+    })
+    const panelDisplay = screen.getDisplayMatching({
+      x: panelBounds.x,
+      y: panelBounds.y,
+      width: 1,
+      height: 1,
+    })
+    if (islandDisplay.id !== panelDisplay.id) panelBounds = null
+  }
   const workArea = workAreaFor(next === 'island' ? islandBounds : panelBounds)
   if (next === 'island') {
     mode = 'island'
@@ -290,7 +308,10 @@ function applyTopmost(on) {
   if (!mainWindow || mainWindow.isDestroyed()) return
   if (PLATFORM.topmostLevel) mainWindow.setAlwaysOnTop(on, PLATFORM.topmostLevel)
   else mainWindow.setAlwaysOnTop(on)
-  if (PLATFORM.mac && on) {
+  if (PLATFORM.mac) {
+    // Re-assert after every level change: macOS moves a window back to the Space
+    // it was created on when its window level changes, which made the panel flash
+    // and vanish on any Space other than the first.
     mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
   }
 }
